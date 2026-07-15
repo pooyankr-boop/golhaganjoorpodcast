@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="sunrise">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>گل‌آوا — رادیوی گل‌ها، شعرخوان گنجور، داستان‌خوانی و مدیتیشن</title>
+<meta name="description" content="رادیوی اینترنتی گل‌آوا: پخش تصادفی موسیقی برنامهٔ گل‌ها از آرشیو آزاد اینترنت، خوانش زندهٔ اشعار گنجور، پادکست داستان‌های فارسی و موسیقی آرامش‌بخش." />
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Lalezar&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body class="mode-golha">
+
+<!-- دکمهٔ تنظیمات: بالا سمت چپ -->
+<div class="settings-slot">
+  <button id="settingsBtn" class="icon-btn" title="تنظیمات" aria-label="تنظیمات">
+    <svg viewBox="0 0 24 24" stroke-width="1.8"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+</div>
+
+<!-- دکمهٔ تعویض حالت: بالا سمت راست -->
+<div class="mode-slot">
+  <div class="mode-emblem" id="modeEmblem">
+    <button id="modeToggleBtn" class="icon-btn mode-toggle-btn" title="تعویض حالت پخش" aria-label="تعویض حالت پخش">
+      <!-- آیکون حالت گل‌ها (پیش‌فرض) -->
+      <svg id="modeIconGolha" viewBox="0 0 24 24" stroke-width="1.6" style="display:block;"><circle cx="12" cy="12" r="10" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+      <!-- آیکون حالت گنجور -->
+      <svg id="modeIconGanjoor" viewBox="0 0 24 24" stroke-width="1.6" style="display:none;"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 7h8" stroke-linecap="round" stroke-linejoin="round"/><path d="M8 11h6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <!-- آیکون حالت داستان‌خوانی -->
+      <svg id="modeIconHekayat" viewBox="0 0 24 24" stroke-width="1.6" style="display:none;"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke-linecap="round" stroke-linejoin="round"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <!-- آیکون حالت مدیتیشن -->
+      <svg id="modeIconMeditation" viewBox="0 0 24 24" stroke-width="1.6" style="display:none;"><path d="M12 3c-1.5 2-5 4-8 4 1 4 2 8 0 12" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3c1.5 2 5 4 8 4-1 4-2 8 0 12" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3v18" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+  <div class="mode-indicators" id="modeIndicators">
+    <span class="mode-dot active" data-mode="golha" title="رادیو گل‌ها"></span>
+    <span class="mode-dot" data-mode="ganjoor" title="شعرخوان گنجور"></span>
+    <span class="mode-dot" data-mode="hekayat" title="داستان‌خوانی"></span>
+    <span class="mode-dot" data-mode="meditation" title="مدیتیشن"></span>
+  </div>
+</div>
+
+<main class="stage">
+  <!-- Fullscreen vinyl bg -->
+  <div id="fullscreenVinyl"></div>
+
+  <div class="player-wrap">
+    <section class="gramophone-card">
+      <span class="mode-label" id="modeLabel">حالت: رادیو گل‌ها</span>
+
+      <div class="gramophone-body">
+        <div class="turntable" id="turntable">
+          <div class="disc" id="disc">
+            <div class="disc-label"></div>
+          </div>
+          <div class="tonearm" id="tonearm">
+            <div class="pivot"></div>
+            <div class="arm"></div>
+            <div class="head"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="now-playing">
+        <p class="t-artist" id="npArtist"></p>
+        <p class="t-title" id="npTitle">برای شروع، از فهرست انتخاب کنید</p>
+        <p class="t-sub" id="npSub">رادیو گل‌ها — پخش تصادفی از آرشیو آزاد</p>
+      </div>
+
+      <div class="transport">
+        <button id="nextBtn" title="بعدی" aria-label="بعدی">
+          <svg viewBox="0 0 24 24"><path d="M5 4l10 8-10 8V4zM19 5v14"/></svg>
+        </button>
+        <button id="playBtn" class="play-btn" title="پخش/توقف" aria-label="پخش/توقف">
+          <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none;"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+        </button>
+        <button id="prevBtn" title="قبلی" aria-label="قبلی">
+          <svg viewBox="0 0 24 24"><path d="M19 20L9 12l10-8v16zM5 19V5"/></svg>
+        </button>
+      </div>
+
+      <div class="progress-row">
+        <span id="curTime">۰:۰۰</span>
+        <input type="range" id="seekBar" min="0" max="100" value="0" />
+        <span id="durTime">۰:۰۰</span>
+      </div>
+      <div class="vol-row">
+        <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg>
+        <input type="range" id="volBar" min="0" max="100" value="85" />
+      </div>
+    </section>
+
+    <aside class="drawer" id="drawer">
+      <button class="drawer-toggle" id="drawerToggle">
+        <span>اطلاعات</span>
+        <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="drawer-content" id="drawerContent">
+        <div class="drawer-empty">برای دیدن اطلاعات، گزینه‌ای را از فهرست پخش انتخاب کنید.</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="playlist-head">
+    <h2 id="playlistTitle">فهرست برنامه‌ها و خوانندگان</h2>
+    <span>برای پخش، روی هر مورد بزنید</span>
+  </div>
+  <div id="playlistRoot"></div>
+</main>
+
+<footer class="credit">
+  گل‌آوا — موسیقی از آرشیو آزاد اینترنت · اشعار از گنجور · داستان‌ها از رادیو حکایت · صداهای آرامش از آرشیو آزاد
+</footer>
+
+<!-- پنل تنظیمات -->
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-card">
+    <h2>تنظیمات</h2>
+
+    <div class="settings-group">
+      <label class="group-label">حالت پخش</label>
+      <div class="mode-grid" id="modeGrid">
+        <button class="mode-choice active" data-mode="golha">
+          <svg viewBox="0 0 24 24" stroke-width="1.5"><circle cx="12" cy="12" r="10" stroke-linecap="round"/><path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4"/><path d="M12 2v6"/></svg>
+          <span>رادیو گل‌ها</span>
+        </button>
+        <button class="mode-choice" data-mode="ganjoor">
+          <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          <span>شعرخوان گنجور</span>
+        </button>
+        <button class="mode-choice" data-mode="hekayat">
+          <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+          <span>داستان‌خوانی</span>
+        </button>
+        <button class="mode-choice" data-mode="meditation">
+          <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 3c-1.5 2-5 4-8 4 1 4 2 8 0 12"/><path d="M12 3c1.5 2 5 4 8 4-1 4-2 8 0 12"/><path d="M12 3v18"/><path d="M5 21h14"/></svg>
+          <span>مدیتیشن و آرامش</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">تم</label>
+      <div class="theme-grid">
+        <div class="theme-swatch" data-theme="light"><div class="dot"></div>روشن</div>
+        <div class="theme-swatch" data-theme="dark"><div class="dot"></div>تاریک</div>
+        <div class="theme-swatch" data-theme="sunrise"><div class="dot"></div>طلوع</div>
+        <div class="theme-swatch" data-theme="sunset"><div class="dot"></div>غروب</div>
+      </div>
+    </div>
+
+    <div class="settings-row2">
+    <div class="settings-group">
+      <label class="group-label">قلم</label>
+      <div class="font-options">
+        <button data-font="vazir">وزیرمتن</button>
+        <button data-font="nastaliq">نستعلیق</button>
+        <button data-font="lalezar">لاله‌زار</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">اندازه: <span id="fontSizeLabel">۱۶</span></label>
+      <div class="size-row">
+        <input type="range" id="fontSizeRange" min="11" max="28" value="16" />
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">ضخامت قلم</label>
+      <div class="font-options">
+        <button data-weight="300">نازک</button>
+        <button data-weight="400" class="active">معمولی</button>
+        <button data-weight="600">پررنگ</button>
+        <button data-weight="800">سیاه</button>
+      </div>
+    </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">فاصله: <span id="lineHeightLabel">۱٫۸</span></label>
+      <div class="size-row">
+        <input type="range" id="lineHeightRange" min="1.2" max="3.0" step="0.1" value="1.8" />
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">صدا</label>
+      <div class="vol-row-settings">
+        <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--ink-soft);fill:none;"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 010 7"/></svg>
+        <input type="range" id="volBarSettings" min="0" max="100" value="85" />
+        <span id="volLabelSettings">۸۵</span>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <label class="group-label">تایمر خواب: <span id="sleepTimerLabel">خاموش</span></label>
+      <div class="sleep-options">
+        <button class="sleep-option active" data-minutes="0">خاموش</button>
+        <button class="sleep-option" data-minutes="15">۱۵</button>
+        <button class="sleep-option" data-minutes="30">۳۰</button>
+        <button class="sleep-option" data-minutes="45">۴۵</button>
+        <button class="sleep-option" data-minutes="60">۶۰</button>
+      </div>
+    </div>
+
+    <button class="settings-close" id="settingsCloseBtn">بستن</button>
+  </div>
+</div>
+
+<script src="golha-data.js"></script>
+<script src="ganjoor-anvari.js"></script>
+<script src="ganjoor-asiri.js"></script>
+<script src="ganjoor-attar.js"></script>
+<script src="ganjoor-bahar.js"></script>
+<script src="ganjoor-bidel.js"></script>
+<script src="ganjoor-eraghi.js"></script>
+<script src="ganjoor-eshghi.js"></script>
+<script src="ganjoor-ferdousi.js"></script>
+<script src="ganjoor-forooghi.js"></script>
+<script src="ganjoor-hafez.js"></script>
+<script src="ganjoor-helali.js"></script>
+<script src="ganjoor-iqbal.js"></script>
+<script src="ganjoor-iraj.js"></script>
+<script src="ganjoor-khaghani.js"></script>
+<script src="ganjoor-khajoo.js"></script>
+<script src="ganjoor-moulavi.js"></script>
+<script src="ganjoor-nezami.js"></script>
+<script src="ganjoor-obeyd.js"></script>
+<script src="ganjoor-parvin.js"></script>
+<script src="ganjoor-rahi.js"></script>
+<script src="ganjoor-saadi.js"></script>
+<script src="ganjoor-saeb.js"></script>
+<script src="ganjoor-salim.js"></script>
+<script src="ganjoor-sanaee.js"></script>
+<script src="ganjoor-seyf.js"></script>
+<script src="ganjoor-vahshi.js"></script>
+<script src="ganjoor-khayyam.js"></script>
+<script src="ganjoor-data.js"></script>
+<script src="hekayat-data.js"></script>
+<script src="redcircle-data.js"></script>
+<script src="hezar-data.js"></script>
+<script src="golestan-data.js"></script>
+<script src="meditation-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

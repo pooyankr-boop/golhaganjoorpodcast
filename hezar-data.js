@@ -1,0 +1,85 @@
+// ===================================================================
+// هزار و یکشب — روایت سهیل صلح‌جو
+// منبع واقعی: archive.org/details/hezaroiekshab (راستی‌آزمایی‌شده)
+// ===================================================================
+
+const HEZAR_BASE = 'https://archive.org/download/hezaroiekshab/';
+
+const HEZAR_EPISODES = [
+  { file: '0000_aghaze_dastan_1001Shab_podcast.mp3', title: 'آغاز داستان' },
+  { file: '0001_1001Shab.mp3', title: 'شب یکم' },
+  { file: '0002_1001Shab.mp3', title: 'شب دوم' },
+  { file: '0003_1001Shab.mp3', title: 'شب سوم' },
+  { file: '0004_1001Shab.mp3', title: 'شب چهارم' },
+  { file: '0005_1001Shab.mp3', title: 'شب پنجم' },
+  { file: '0006_1001Shab.mp3', title: 'شب ششم' },
+  { file: '0007_1001Shab.mp3', title: 'شب هفتم' },
+  { file: '0008_1001Shab.mp3', title: 'شب هشتم' },
+  { file: '0009_1001Shab.mp3', title: 'شب نهم' },
+  { file: '0010_1001Shab.mp3', title: 'شب دهم' },
+  { file: '0011_1001Shab.mp3', title: 'شب یازدهم' },
+  { file: '0012_1001Shab.mp3', title: 'شب دوازدهم' },
+  { file: '0013_1001Shab.mp3', title: 'شب سیزدهم' },
+  { file: '0014_1001Shab.mp3', title: 'شب چهاردهم' },
+  { file: '0015_1001Shab.mp3', title: 'شب پانزدهم' },
+  { file: '0016_1001Shab.mp3', title: 'شب شانزدهم' },
+  { file: '0017_1001Shab.mp3', title: 'شب هفدهم' },
+  { file: '0018_1001Shab.mp3', title: 'شب هیجدهم' },
+  { file: '0019_1001Shab.mp3', title: 'شب نوزدهم' },
+  { file: '0020_1001Shab.mp3', title: 'شب بیستم' },
+  { file: '0021_1001Shab.mp3', title: 'شب بیست و یکم' },
+  { file: '0022_1001Shab.mp3', title: 'شب ۲۲' },
+  { file: '0023_1001Shab.mp3', title: 'شب ۲۳' },
+  { file: '0024_1001Shab.mp3', title: 'شب ۲۴' },
+  { file: '0025_1001Shab.mp3', title: 'شب ۲۵' },
+  { file: '0026_1001Shab.mp3', title: 'شب ۲۶' },
+  { file: '0027_1001Shab.mp3', title: 'شب ۲۷' },
+  { file: '0028_1001Shab.mp3', title: 'شب ۲۸' },
+  { file: '0029_1001Shab.mp3', title: 'شب ۲۹' },
+  { file: '0030_1001Shab.mp3', title: 'شب ۳۰' },
+  { file: '0031_1001Shab.mp3', title: 'شب ۳۱' },
+  { file: '0032_1001Shab_1.mp3', title: 'شب ۳۲ — بخش ۱' },
+  { file: '0032_1001Shab_2.mp3', title: 'شب ۳۲ — بخش ۲' },
+  { file: '0033_1001Shab.mp3', title: 'شب ۳۳' },
+  { file: '0034_1001Shab.mp3', title: 'شب ۳۴' },
+  { file: '0035_1001Shab.mp3', title: 'شب ۳۵' },
+  { file: '0036_1001Shab.mp3', title: 'شب ۳۶' },
+  { file: '0037_1001Shab.mp3', title: 'شب ۳۷' },
+  { file: '0038_1001Shab.mp3', title: 'شب ۳۸' },
+  { file: '0039_1001Shab.mp3', title: 'شب ۳۹' },
+  { file: '0040_1001Shab.mp3', title: 'شب ۴۰' },
+  { file: '0041_1001Shab.mp3', title: 'شب ۴۱' },
+  { file: '0042_1001Shab.mp3', title: 'شب ۴۲' },
+  { file: '0043_1001Shab.mp3', title: 'شب ۴۳' },
+  { file: '0044_1001Shab.mp3', title: 'شب ۴۴' },
+  { file: '0045_1001Shab.mp3', title: 'شب ۴۵' },
+  { file: '0046_1001Shab.mp3', title: 'شب ۴۶' },
+  { file: '0047_1001Shab.mp3', title: 'شب ۴۷' },
+  { file: '0048_1001Shab.mp3', title: 'شب ۴۸' },
+  { file: '0049_1001Shab.mp3', title: 'شب ۴۹' },
+  { file: '0050_1001Shab.mp3', title: 'شب ۵۰' },
+  { file: '0051_1001Shab.mp3', title: 'شب ۵۱' },
+  { file: '0052_1001Shab.mp3', title: 'شب ۵۲' },
+  { file: '0053_1001Shab.mp3', title: 'شب ۵۳' },
+  { file: '0054_1001Shab.mp3', title: 'شب ۵۴' },
+  { file: '0055_1001Shab.mp3', title: 'شب ۵۵' },
+  { file: '0056_1001Shab.mp3', title: 'شب ۵۶' },
+  { file: '0057_1001Shab.mp3', title: 'شب ۵۷' },
+  { file: '0058_1001Shab.mp3', title: 'شب ۵۸' }
+];
+
+function buildHezarFlatList() {
+  return HEZAR_EPISODES.map(e => ({
+    mode: 'hekayat',
+    collectionId: 'hezaroiekshab',
+    collection: 'هزار و یکشب — روایت سهیل صلح‌جو',
+    author: 'سهیل صلح‌جو',
+    title: e.title,
+    subtitle: 'هزار و یکشب — ' + e.title,
+    info: 'قصه‌های هزار و یکشب، خوانش، ضبط و میکس: سهیل صلح‌جو. ترجمهٔ ملا عبداللطیف طسوجی تبریزی از دوران فتحعلی‌شاه قاجار.',
+    duration: '',
+    src: HEZAR_BASE + e.file,
+    url: 'https://hezaroiekshab.blogspot.com',
+    pubDate: ''
+  }));
+}
