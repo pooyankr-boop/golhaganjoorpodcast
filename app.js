@@ -1,10 +1,47 @@
-/* =====================================================================
-   گل‌آوا — منطق کامل برنامه
+﻿/* =====================================================================
+   رادیو آواک — منطق کامل برنامه
    رادیو گل‌ها + شعرخوان گنجور + داستان‌خوانی + مدیتیشن
    ===================================================================== */
 
 const audio = new Audio();
 audio.preload = "none";
+
+/* ===================================================================
+   Media Session — پخش پیوسته در پس‌زمینه (موبایل) + کنترل از صفحهٔ قفل
+   (هر action جدا try/catch می‌شود چون نبود پشتیبانی از یکی نباید
+   ثبت بقیهٔ دکمه‌ها، مخصوصاً قبلی/بعدی، را متوقف کند)
+   =================================================================== */
+function setMediaAction(action, handler) {
+  if (!('mediaSession' in navigator)) return;
+  try { navigator.mediaSession.setActionHandler(action, handler); } catch (e) {}
+}
+setMediaAction('play', () => { audio.play().catch(function(){}); });
+setMediaAction('pause', () => { audio.pause(); });
+setMediaAction('previoustrack', () => { prevTrack(); });
+setMediaAction('nexttrack', () => { nextTrack(); });
+setMediaAction('stop', () => { audio.pause(); });
+setMediaAction('seekbackward', () => { audio.currentTime = Math.max(0, audio.currentTime - 10); });
+setMediaAction('seekforward', () => { audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + 10); });
+function updateMediaSessionMetadata(item) {
+  if (!item) return;
+  document.title = 'رادیو آواک-' + (item.title || '');
+  if (!('mediaSession' in navigator)) return;
+  var artist = '';
+  var album = 'رادیو آواک';
+  switch (item.mode) {
+    case 'golha': artist = item.performer || ''; break;
+    case 'ganjoor': artist = item.poet || ''; break;
+    case 'hekayat': artist = item.author || 'رادیو حکایت'; break;
+    case 'meditation': artist = item.category || 'مدیتیشن'; break;
+  }
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: item.title || 'رادیو آواک',
+      artist: artist,
+      album: album
+    });
+  } catch (e) {}
+}
 
 /* ===================================================================
    نویز سفید/صورتی/قهوه‌ای — تولید زنده با Web Audio API
@@ -75,7 +112,8 @@ function playSynthNoise(type) {
 let state = {
   mode: "golha",
   theme: "sunrise",
-  fontChoice: "vazir",
+  fontPack: "classic",
+  weightLevel: "normal",
   fontScale: 16,
   golhaList: [],
   ganjoorList: [],
@@ -85,6 +123,9 @@ let state = {
   playing: false,
   drawerOpen: false,
   randomStartDone: false,
+  playingMode: null,
+  shuffleMode: 'allModes', // 'off' | 'allModes' | 'modeList' | 'list' | 'subList' — پیش‌فرض: کل حالات
+  repeatMode: 'off',    // 'off' | 'list' | 'one'
   sleepTimerEndAt: null,
   sleepTimerId: null
 };
@@ -110,9 +151,9 @@ function formatTime(s) {
    حالت‌ها و نام‌های فارسی
    =================================================================== */
 const MODE_NAMES = {
-  golha: "رادیو گل‌ها",
+  golha: "رادیو آواک",
   ganjoor: "شعرخوان گنجور",
-  hekayat: "داستان‌خوانی",
+  hekayat: "نثرخوان",
   meditation: "مدیتیشن و آرامش"
 };
 
@@ -126,6 +167,74 @@ const MODE_PLAYLIST_TITLES = {
 const MODE_ORDER = ["golha", "ganjoor", "hekayat", "meditation"];
 
 /* ===================================================================
+   قلم‌ها (دسته‌های سه‌تایی) و ضخامت
+   =================================================================== */
+const FONT_PACKS = {
+  classic: {
+    ui: "'Vazirmatn', sans-serif",
+    heading: "'Noto Nastaliq Urdu', 'Vazirmatn', serif",
+    decorative: "'Lalezar', 'Vazirmatn', sans-serif",
+    weights: {
+      thin:   { ui: 300, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
+      normal: { ui: 400, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
+      bold:   { ui: 700, heading: 700, decorative: 400, strokeUi: 0.2,  strokeHeading: 0.3 },
+      black:  { ui: 900, heading: 700, decorative: 400, strokeUi: 0.5,  strokeHeading: 0.6 }
+    }
+  },
+  modern: {
+    ui: "'Estedad', 'Vazirmatn', sans-serif",
+    heading: "'IBM Plex Sans Arabic', 'Estedad', sans-serif",
+    decorative: "'Rakkas', 'Estedad', sans-serif",
+    weights: {
+      thin:   { ui: 300, heading: 300, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
+      normal: { ui: 500, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
+      bold:   { ui: 700, heading: 600, decorative: 400, strokeUi: 0.25, strokeHeading: 0.25 },
+      black:  { ui: 900, heading: 700, decorative: 400, strokeUi: 0.55, strokeHeading: 0.5 }
+    }
+  },
+  traditional: {
+    ui: "'Scheherazade New', 'Vazirmatn', serif",
+    heading: "'Aref Ruqaa', 'Scheherazade New', serif",
+    decorative: "'Lalezar', serif",
+    weights: {
+      thin:   { ui: 400, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
+      normal: { ui: 400, heading: 400, decorative: 400, strokeUi: 0.15, strokeHeading: 0 },
+      bold:   { ui: 700, heading: 700, decorative: 400, strokeUi: 0.35, strokeHeading: 0.3 },
+      black:  { ui: 700, heading: 700, decorative: 400, strokeUi: 0.7,  strokeHeading: 0.6 }
+    }
+  }
+};
+
+function applyFontPack(packId) {
+  if (!FONT_PACKS[packId]) packId = 'classic';
+  state.fontPack = packId;
+  const pack = FONT_PACKS[packId];
+  document.documentElement.style.setProperty('--font-ui', pack.ui);
+  document.documentElement.style.setProperty('--font-heading', pack.heading);
+  document.documentElement.style.setProperty('--font-decorative', pack.decorative);
+  document.querySelectorAll('[data-fontpack]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.fontpack === packId);
+  });
+  applyFontWeight(state.weightLevel || 'normal');
+  try { localStorage.setItem('golava-fontpack', packId); } catch (e) {}
+}
+
+function applyFontWeight(level) {
+  state.weightLevel = level;
+  const pack = FONT_PACKS[state.fontPack] || FONT_PACKS.classic;
+  const w = pack.weights[level] || pack.weights.normal;
+  document.documentElement.style.setProperty('--weight-ui', w.ui);
+  document.documentElement.style.setProperty('--weight-heading', w.heading);
+  document.documentElement.style.setProperty('--weight-decorative', w.decorative);
+  document.documentElement.style.setProperty('--stroke-ui', w.strokeUi + 'px');
+  document.documentElement.style.setProperty('--stroke-heading', w.strokeHeading + 'px');
+  document.querySelectorAll('[data-weight]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.weight === level);
+  });
+  try { localStorage.setItem('golava-weightlevel', level); } catch (e) {}
+}
+
+/* ===================================================================
    تنظیمات
    =================================================================== */
 function applyTheme(theme) {
@@ -137,23 +246,9 @@ function applyTheme(theme) {
   try { localStorage.setItem("golava-theme", theme); } catch (e) {}
 }
 
-function applyFont(choice) {
-  state.fontChoice = choice;
-  const map = {
-    vazir: "'Vazirmatn', sans-serif",
-    nastaliq: "'Noto Nastaliq Urdu', 'Vazirmatn', serif",
-    lalezar: "'Lalezar', 'Vazirmatn', sans-serif",
-  };
-  document.documentElement.style.setProperty("--font-ui", map[choice] || map.vazir);
-  document.querySelectorAll(".font-options button").forEach((b) => {
-    b.classList.toggle("active", b.dataset.font === choice);
-  });
-  try { localStorage.setItem("golava-font", choice); } catch (e) {}
-}
-
 function applyFontScale(px) {
   state.fontScale = px;
-  document.documentElement.style.setProperty("--font-scale", px + "px");
+  document.documentElement.style.setProperty("--drawer-scale", px + "px");
   document.getElementById("fontSizeLabel").textContent = toFa(px);
   try { localStorage.setItem("golava-scale", px); } catch (e) {}
 }
@@ -161,24 +256,27 @@ function applyFontScale(px) {
 function loadSavedSettings() {
   try {
     const t = localStorage.getItem("golava-theme");
-    const f = localStorage.getItem("golava-font");
+    const fp = localStorage.getItem("golava-fontpack");
+    const wl = localStorage.getItem("golava-weightlevel");
     const s = localStorage.getItem("golava-scale");
     applyTheme(t || "sunrise");
-    applyFont(f || "vazir");
-    applyFontScale(s ? parseInt(s, 10) : 16);
+    applyFontPack(fp || "classic");
+    applyFontWeight(wl || "normal");
+    applyFontScale(s ? parseInt(s, 10) : 15);
     document.getElementById("fontSizeRange").value = state.fontScale;
   } catch (e) {
     applyTheme("sunrise");
-    applyFont("vazir");
-    applyFontScale(16);
+    applyFontPack("classic");
+    applyFontWeight("normal");
+    applyFontScale(15);
   }
 }
 
 /* ===================================================================
    ساخت فهرست تخت
    =================================================================== */
-function currentList() {
-  switch (state.mode) {
+function listForMode(m) {
+  switch (m) {
     case "golha": return state.golhaList;
     case "ganjoor": return state.ganjoorList;
     case "hekayat": return state.hekayatList;
@@ -186,6 +284,61 @@ function currentList() {
     default: return state.golhaList;
   }
 }
+
+function currentList() {
+  return listForMode(state.mode);
+}
+
+function playbackList() {
+  return listForMode(state.playingMode || state.mode);
+}
+
+const ORDINAL_WORDS = { "اول": 1, "دوم": 2, "سوم": 3, "چهارم": 4, "پنجم": 5, "ششم": 6, "هفتم": 7, "هشتم": 8, "نهم": 9, "دهم": 10 };
+function extractOrdinalInfo(name) {
+  const words = String(name).split(/\s+/);
+  for (let i = 0; i < words.length; i++) {
+    if (ORDINAL_WORDS[words[i]] !== undefined) {
+      return { prefix: words.slice(0, i).join(" "), num: ORDINAL_WORDS[words[i]] };
+    }
+  }
+  return null;
+}
+
+function sortFormKeys(subOrder, subGroups) {
+  const clusters = {};
+  const standalone = [];
+  subOrder.forEach((key) => {
+    const info = extractOrdinalInfo(key);
+    if (info) {
+      if (!clusters[info.prefix]) clusters[info.prefix] = [];
+      clusters[info.prefix].push({ key, num: info.num });
+    } else {
+      standalone.push(key);
+    }
+  });
+  const blocks = [];
+  Object.keys(clusters).forEach((prefix) => {
+    const members = clusters[prefix].slice().sort((a, b) => a.num - b.num);
+    const maxCount = Math.max(...members.map((m) => subGroups[m.key].length));
+    blocks.push({ repCount: maxCount, keys: members.map((m) => m.key) });
+  });
+  standalone.forEach((key) => {
+    blocks.push({ repCount: subGroups[key].length, keys: [key] });
+  });
+  blocks.sort((a, b) => b.repCount - a.repCount);
+  const result = [];
+  blocks.forEach((b) => result.push(...b.keys));
+  return result;
+}
+
+const HEKAYAT_SUB_TEXT = {
+  radiohekayat: "داستان‌های صوتی فارسی",
+  ketabsoti: "کتاب صوتی فارسی",
+  hezar: "قصه‌های هزار و یکشب — چند خوانش",
+  golestan: "حکایات گلستان سعدی فارسی",
+  ghesegoo: "قصه‌های صوتی",
+  khabcast: "داستان‌های آرامش‌بخش برای خواب"
+};
 
 function groupedForRender() {
   const list = currentList();
@@ -204,12 +357,12 @@ function groupedForRender() {
       case "ganjoor":
         key = item.poet;
         name = item.poet;
-        sub = item.poetNickname || "شاعر";
+        sub = "";
         break;
       case "hekayat":
         key = item.collectionId || "all";
         name = item.collection || "داستان‌خوانی";
-        sub = "داستان‌های صوتی فارسی";
+        sub = HEKAYAT_SUB_TEXT[item.collectionId] || "داستان‌های صوتی فارسی";
         break;
       case "meditation":
         key = item.categoryId;
@@ -221,8 +374,8 @@ function groupedForRender() {
     if (!groups[key]) {
       groups[key] = {
         key, name, sub, items: [],
-        subGroups: state.mode === "ganjoor" ? {} : null,
-        subOrder: state.mode === "ganjoor" ? [] : null
+        works: {},
+        workOrder: []
       };
       order.push(key);
     }
@@ -230,28 +383,148 @@ function groupedForRender() {
     const augmented = { ...item, globalIndex: i };
     groups[key].items.push(augmented);
 
-    if (state.mode === "ganjoor") {
-      const formKey = item.formLabel || "شعر";
-      if (!groups[key].subGroups[formKey]) {
-        groups[key].subGroups[formKey] = [];
-        groups[key].subOrder.push(formKey);
+    const workKey = state.mode === "ganjoor" ? (item.formLabel || "شعر") : item.subCollection;
+    if (workKey) {
+      const g = groups[key];
+      if (!g.works[workKey]) {
+        g.works[workKey] = { items: [], chapters: {}, chapterOrder: [] };
+        g.workOrder.push(workKey);
       }
-      groups[key].subGroups[formKey].push(augmented);
+      const work = g.works[workKey];
+      work.items.push(augmented);
+      if (state.mode === "ganjoor" && item.chapterLabel) {
+        if (!work.chapters[item.chapterLabel]) {
+          work.chapters[item.chapterLabel] = [];
+          work.chapterOrder.push(item.chapterLabel);
+        }
+        work.chapters[item.chapterLabel].push(augmented);
+      }
     }
   });
 
-  return order.map((k) => groups[k]);
+  if (state.mode === "ganjoor") {
+    order.forEach((k) => {
+      const g = groups[k];
+      const workItemMap = {};
+      g.workOrder.forEach((w) => { workItemMap[w] = g.works[w].items; });
+      g.workOrder = sortFormKeys(g.workOrder, workItemMap);
+      g.sub = g.workOrder.join("، ");
+      g.workOrder.forEach((w) => {
+        const work = g.works[w];
+        if (work.chapterOrder.length > 1) {
+          work.chapterOrder = sortFormKeys(work.chapterOrder, work.chapters);
+        }
+      });
+    });
+  }
+
+  // شاعرانی که هنوز (همهٔ) فایلشان بارگذاری نشده، به‌عنوان یک باکس بسته
+  // نشان داده می‌شوند — با کلیک، فقط فایل‌های همان شاعر (ممکن است چند
+  // فایل باشد، مثلاً مولانا: دیوان شمس + مثنوی) بارگذاری می‌شود.
+  // توجه مهم: بعضی شاعران چند فایل دارند با poetName یکسان (مثلاً مولانا
+  // هم «فیه ما فیه» را دارد که سبک/غیرتنبل است، هم دیوان شمس و مثنوی که
+  // سنگین/تنبل‌اند) — باید فایل‌های تنبلِ باقی‌مانده را حتی وقتی گروه از
+  // قبل با محتوای فایل سبک ساخته شده هم پیدا کنیم، وگرنه آن فایل‌های
+  // تنبل هیچ‌وقت راهی برای بارگذاری شدن پیدا نمی‌کنند.
+  if (state.mode === "ganjoor" && typeof GANJOOR_INDEX !== 'undefined') {
+    const pendingByPoet = {};
+    GANJOOR_INDEX.forEach((poet) => {
+      if (!poet.lazy || _loadedScripts.has(poet.file)) return;
+      if (!pendingByPoet[poet.poetName]) pendingByPoet[poet.poetName] = { files: [], sections: [], sizeKB: 0 };
+      const p = pendingByPoet[poet.poetName];
+      p.files.push(poet.file);
+      p.sizeKB += (poet.sizeKB || 0);
+      (poet.sections || []).forEach((s) => { if (p.sections.indexOf(s) === -1) p.sections.push(s); });
+    });
+    Object.keys(pendingByPoet).forEach((poetName) => {
+      const p = pendingByPoet[poetName];
+      if (groups[poetName]) {
+        // شاعر بخشی از آثارش (مثل «فیه ما فیه» برای مولانا) از قبل لود شده،
+        // فقط اعلام می‌کنیم بقیهٔ فایل‌ها هنوز مانده‌اند
+        groups[poetName].unloadedFiles = p.files;
+        groups[poetName].unloadedSub = p.sections.join('، ');
+      } else {
+        groups[poetName] = {
+          key: poetName,
+          name: poetName,
+          sub: p.sections.join('، '),
+          items: [],
+          works: {},
+          workOrder: [],
+          unloadedFiles: p.files,
+          sortWeight: p.sizeKB
+        };
+        order.push(poetName);
+      }
+    });
+  }
+
+  return order.map((k) => groups[k]).sort((a, b) => {
+    const wa = a.items.length || a.sortWeight || 0;
+    const wb = b.items.length || b.sortWeight || 0;
+    return wb - wa;
+  });
 }
 
 /* ===================================================================
    رندر فهرست پخش
    =================================================================== */
+var _justOpenedPoetKey = null;
+var _loadingPoetKeys = {};
+function loadOnePoetLazy(poetKey, files) {
+  if (_loadingPoetKeys[poetKey]) return;
+  _loadingPoetKeys[poetKey] = true;
+  const fileList = Array.isArray(files) ? files : [files];
+  Promise.all(fileList.map((f) => loadScript(f))).then(function() {
+    try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
+    buildGanjoorList();
+    _justOpenedPoetKey = poetKey;
+    renderPlaylist();
+    renderDrawer();
+  }).catch(function() {}).finally(function() {
+    delete _loadingPoetKeys[poetKey];
+  });
+}
+
+// وقتی کاربر خودش صریحاً شافلِ «کل فهرست‌های این حالت» یا «کل حالات» را
+// فعال می‌کند، یعنی واقعاً دنبال تنوع کامل است — پس همین‌جا (نه در بارگذاری
+// اولیهٔ صفحه) بقیهٔ شاعران سنگین را هم در پس‌زمینه بارگذاری می‌کنیم تا
+// شافل واقعاً از کل گنجور پخش کند، نه فقط از چیزهایی که تا الان کلیک شده
+var _allGanjoorLoadingStarted = false;
+function ensureAllGanjoorPoetsLoaded() {
+  if (_allGanjoorLoadingStarted || typeof GANJOOR_INDEX === 'undefined') return Promise.resolve();
+  const files = GANJOOR_INDEX.filter((p) => p.lazy && !_loadedScripts.has(p.file)).map((p) => p.file);
+  if (!files.length) return Promise.resolve();
+  _allGanjoorLoadingStarted = true;
+  return Promise.all(files.map((f) => loadScript(f))).then(() => {
+    try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
+    buildGanjoorList();
+    if (state.mode === 'ganjoor') { renderPlaylist(); renderDrawer(); }
+  }).catch(() => {});
+}
+
 function renderPlaylist() {
   const root = document.getElementById("playlistRoot");
   root.innerHTML = "";
 
   if (!currentList().length) {
     root.innerHTML = `<div class="playlist-status">در حال بارگذاری…</div>`;
+    return;
+  }
+
+  // جستجو فعال: فهرست تخت
+  if (_searchQuery && _searchQuery.trim() !== '') {
+    var master = currentList();
+    var flat = filterListBySearch(master, _searchQuery);
+    if (!flat.length) {
+      root.innerHTML = '<div class="playlist-status">نتیجه‌ای یافت نشد</div>';
+      return;
+    }
+    flat.forEach(function(item, i) {
+      item.globalIndex = master.indexOf(item);
+      if (item.globalIndex < 0) item.globalIndex = i;
+      appendTrackRow(root, item, i);
+    });
     return;
   }
 
@@ -262,12 +535,22 @@ function renderPlaylist() {
   }
 
   groups.forEach((g, gi) => {
+    const hasUnloaded = g.unloadedFiles && g.unloadedFiles.length > 0;
+    const isPurePlaceholder = hasUnloaded && g.items.length === 0;
+
     const details = document.createElement("details");
     details.className = "collection";
-    if (gi === 0) details.open = true;
+    if (isPurePlaceholder) details.classList.add("collection-unloaded");
+    if (_justOpenedPoetKey && g.key === _justOpenedPoetKey) {
+      details.open = true;
+    } else if (!_justOpenedPoetKey && gi === 0) {
+      details.open = true;
+    }
     const summary = document.createElement("summary");
 
-    let countHtml = `<span class="c-count">${toFa(g.items.length)}</span>`;
+    let countHtml = isPurePlaceholder
+      ? `<span class="c-count c-count-lazy">بارگذاری…</span>`
+      : `<span class="c-count">${toFa(g.items.length)}</span>`;
     summary.innerHTML = `
       <span>
         <span class="c-name">${g.name}</span>
@@ -280,34 +563,88 @@ function renderPlaylist() {
     `;
     details.appendChild(summary);
 
-    if (state.mode === "ganjoor" && g.subOrder && g.subOrder.length > 1) {
-      g.subOrder.forEach((formKey, fi) => {
-        const subItems = g.subGroups[formKey];
-        if (!subItems || !subItems.length) return;
-        const subDetails = document.createElement("details");
-        subDetails.className = "sub-collection";
-        const subSummary = document.createElement("summary");
-        const subCountHtml = `<span class="c-count">${toFa(subItems.length)}</span>`;
-        subSummary.innerHTML = `
+    if (isPurePlaceholder) {
+      // فقط همین شاعر (همهٔ فایل‌هایش، شاید چندتا) با کلیک بارگذاری می‌شود
+      details.addEventListener('toggle', function onOpenLazyPoet() {
+        if (!details.open) return;
+        details.removeEventListener('toggle', onOpenLazyPoet);
+        loadOnePoetLazy(g.key, g.unloadedFiles);
+      });
+      root.appendChild(details);
+      return;
+    }
+
+    if (g.workOrder && g.workOrder.length > 1) {
+      g.workOrder.forEach((workKey) => {
+        const work = g.works[workKey];
+        if (!work || !work.items.length) return;
+        const workDetails = document.createElement("details");
+        workDetails.className = "sub-collection";
+        const workSummary = document.createElement("summary");
+        const workCountHtml = `<span class="c-count">${toFa(work.items.length)}</span>`;
+        workSummary.innerHTML = `
           <span>
-            <span class="c-name">${formKey}</span>
-            <span class="c-sub">قالب شعر</span>
+            <span class="c-name">${workKey}</span>
           </span>
           <span style="display:flex;align-items:center;gap:8px;">
-            ${subCountHtml}
+            ${workCountHtml}
             <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         `;
-        subDetails.appendChild(subSummary);
-        details.appendChild(subDetails);
-        subItems.forEach((item, i) => appendTrackRow(subDetails, item, i));
+        workDetails.appendChild(workSummary);
+        details.appendChild(workDetails);
+
+        if (work.chapterOrder.length > 1) {
+          work.chapterOrder.forEach((chapterKey) => {
+            const chapterItems = work.chapters[chapterKey];
+            if (!chapterItems || !chapterItems.length) return;
+            const chDetails = document.createElement("details");
+            chDetails.className = "sub-sub-collection";
+            const chSummary = document.createElement("summary");
+            const chCountHtml = `<span class="c-count">${toFa(chapterItems.length)}</span>`;
+            chSummary.innerHTML = `
+              <span>
+                <span class="c-name">${chapterKey}</span>
+              </span>
+              <span style="display:flex;align-items:center;gap:8px;">
+                ${chCountHtml}
+                <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </span>
+            `;
+            chDetails.appendChild(chSummary);
+            workDetails.appendChild(chDetails);
+            chapterItems.forEach((item, i) => appendTrackRow(chDetails, item, i));
+          });
+        } else {
+          work.items.forEach((item, i) => appendTrackRow(workDetails, item, i));
+        }
       });
+    } else if (state.mode === "ganjoor") {
+      g.items.forEach((item, i) => appendTrackRow(details, item, i));
     } else {
       g.items.forEach((item, i) => appendTrackRow(details, item, i));
     }
 
+    if (hasUnloaded) {
+      // این شاعر بخشی‌اش لود شده (مثلاً فیه‌ما‌فیهِ مولانا) ولی بقیهٔ
+      // آثارش (مثلاً دیوان شمس/مثنوی) هنوز مانده — یک دکمه برای لود بقیه
+      const moreBtn = document.createElement('button');
+      moreBtn.type = 'button';
+      moreBtn.className = 'load-more-poet-btn';
+      moreBtn.textContent = 'بارگذاری بقیهٔ آثار' + (g.unloadedSub ? (' (' + g.unloadedSub + ')') : '');
+      moreBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        moreBtn.disabled = true;
+        moreBtn.textContent = 'در حال بارگذاری…';
+        loadOnePoetLazy(g.key, g.unloadedFiles);
+      });
+      details.appendChild(moreBtn);
+    }
+
     root.appendChild(details);
   });
+
+  _justOpenedPoetKey = null;
 }
 
 function appendTrackRow(parent, item, i) {
@@ -323,10 +660,10 @@ function appendTrackRow(parent, item, i) {
     tag = `<span class="form-tag">${item.formLabel}</span>`;
   }
   if (state.mode === "hekayat" && item.duration) {
-    tag = `<span class="form-tag">${item.duration}</span>`;
+    tag = `<span class="form-tag">${toFa(item.duration)}</span>`;
   }
   if (state.mode === "meditation" && item.duration) {
-    tag = `<span class="form-tag">${item.duration}</span>`;
+    tag = `<span class="form-tag">${toFa(item.duration)}</span>`;
   }
 
   row.innerHTML = `
@@ -336,7 +673,11 @@ function appendTrackRow(parent, item, i) {
     <span class="eq"><span></span><span></span><span></span></span>
   `;
   row.addEventListener("click", () => {
+    state.playingMode = state.mode;
     state.randomStartDone = true;
+    _searchQuery = '';
+    var si = document.getElementById('searchInput');
+    if (si) si.value = '';
     playIndex(item.globalIndex);
   });
   parent.appendChild(row);
@@ -385,37 +726,56 @@ function updateModeUI() {
    =================================================================== */
 function renderDrawer() {
   const content = document.getElementById("drawerContent");
-  const list = currentList();
+  const list = playbackList();
   const item = list[state.currentIndex];
   if (!item) {
     content.innerHTML = `<div class="drawer-empty">برای دیدن اطلاعات، گزینه‌ای را انتخاب کنید.</div>`;
     return;
   }
+  // re-apply saved font color helper
+  function applyFontColor() {
+    try {
+      var c = localStorage.getItem('golava-fontcolor');
+      if (c) document.querySelectorAll('.drawer-content .drawer-body, .drawer-content h3, .drawer-content .drawer-meta').forEach(function(el) { el.style.color = c; });
+    } catch(e) {}
+  }
 
-  switch (state.mode) {
-    case "golha":
+  switch (item.mode) {
+    case "golha": {
+      const golhaSrc = (item.collectionId === 'playlist')
+        ? { label: 'پلی‌لیست — مختار رزمجو', url: 'https://castbox.fm/vh/2480138' }
+        : { label: 'آرشیو آزاد اینترنت (archive.org) — مجموعهٔ موسیقی اصیل ایرانی', url: 'https://archive.org/details/mousighi-irani' };
       content.innerHTML = `
         <h3>${item.title}</h3>
         <div class="drawer-meta">${item.performer} — ${item.subtitle || ""}</div>
         <div class="drawer-body">${item.info || ""}</div>
-        <div class="drawer-meta" style="margin-top:12px;">منبع: آرشیو آزاد اینترنت (archive.org) — مجموعهٔ موسیقی اصیل ایرانی</div>
+        <div class="drawer-meta" style="margin-top:12px;">منبع: <a href="${golhaSrc.url}" target="_blank" style="color:var(--accent);">${golhaSrc.label}</a></div>
       `;
       break;
+    }
 
-    case "ganjoor":
+    case "ganjoor": {
+      const isFerdowsiReading = item.formLabel === 'فردوسی‌خوانی-امیر خادم';
+      const ganjoorSrcHtml = isFerdowsiReading
+        ? ('منبع: فردوسی‌خوانی — امیر خادم' + (item.url ? ' — <a href="' + item.url + '" target="_blank" style="color:var(--accent);">مشاهدهٔ صفحهٔ پادکست</a>' : ''))
+        : ('خوانشگر: ' + (item.reciter || "نامشخص") + ' — منبع: گنجور (ganjoor.net)' + (item.url ? ' — <a href="' + item.url + '" target="_blank" style="color:var(--accent);">مشاهده در گنجور</a>' : ''));
       content.innerHTML = `
         <h3>${item.fullTitle || item.title}</h3>
         <div class="drawer-meta">شاعر: ${item.poet}${item.formLabel ? " — بخش: " + item.formLabel : ""}</div>
         <div class="drawer-body">${(item.text || "").replace(/\n/g, "<br>")}</div>
-        <div class="drawer-meta" style="margin-top:12px;">خوانشگر: ${item.reciter || "نامشخص"} — منبع: گنجور (ganjoor.net)${item.url ? ' — <a href="' + item.url + '" target="_blank" style="color:var(--accent);">مشاهده در گنجور</a>' : ""}</div>
+        <div class="drawer-meta" style="margin-top:12px;">${ganjoorSrcHtml}</div>
       `;
       break;
+    }
 
     case "hekayat": {
       const srcMap = {
-        ketabsoti: { label: 'کتاب صوتی ناصر زراعتی — RedCircle', url: 'https://feeds.redcircle.com/af0f4c01-435b-4829-a7a7-f9cf1fefa3bb' },
+        ketabsoti: { label: 'کتاب صوتی ناصر زراعتی — CastBox', url: 'https://castbox.fm/vh/3469150' },
         hezaroiekshab: { label: 'هزار و یکشب — archive.org', url: 'https://hezaroiekshab.blogspot.com' },
-        golestan: { label: 'گلستان سعدی', url: 'https://ganjoor.net/saadi/golestan' }
+        golestan: { label: 'گلستان سعدی', url: 'https://ganjoor.net/saadi/golestan' },
+        ghesegoo: { label: 'قصه‌گو — CastBox', url: 'https://castbox.fm/vh/6684477' },
+        ketabkhane_baba: { label: 'کتابخانه بابا — CastBox', url: 'https://castbox.fm/vh/6159947' },
+        tarikh_beihaghi: { label: 'دیبای دیداری — تاریخ بیهقی', url: 'https://castbox.fm/vh/4558343' }
       };
       const src = srcMap[item.collectionId] || { label: 'رادیو حکایت — تهران پادکست', url: 'https://tehranpodcast.ir/radiohekayat/' };
       content.innerHTML = `
@@ -427,31 +787,59 @@ function renderDrawer() {
       break;
     }
 
-    case "meditation":
+    case "meditation": {
+      const medSrc = (function() {
+        const id = item.collectionId || item.categoryId;
+        if (id === "khabcast") return { label: "خوابکست — CastBox", url: "https://castbox.fm/channel/id6408013" };
+        if (id === "mother-child") return { label: "کانال همراه مادر و کودک — CastBox", url: "https://castbox.fm/channel/id2538237" };
+        if (id === "shab-bekheir") return { label: "شب بخیر کوچولو — CastBox", url: "https://castbox.fm/channel/id4946220" };
+        if (id === "cafe-khial") return { label: "کافه خیال — CastBox", url: "https://castbox.fm/channel/id5655497" };
+        if (id === "dastan-shab") return { label: "داستان شب کودک — CastBox", url: "https://castbox.fm/channel/id4801837" };
+        if (id === "mindful") return { label: "آشنایی با مدیتیشن و این پادکست", url: "https://tehranpodcast.ir/mindful-life/" };
+        if (id === "persian-instruments") return { label: "سازهای ایرانی — سنتور، تار و کمانچه (archive.org)", url: "https://archive.org/details/santur-faramarz-payvar" };
+        if (id === "tibetan") return { label: "زنگ‌های تبتی و صداهای معنوی (archive.org)", url: "https://archive.org/details/TibetanBowls_201809" };
+        return { label: "مدیتیشن و آرامش", url: "#" };
+      })();
       content.innerHTML = `
         <h3>${item.title}</h3>
-        <div class="drawer-meta">${item.category || "مدیتیشن"}${item.duration ? " — مدت: " + item.duration : ""}</div>
+        <div class="drawer-meta">${item.category || item.collection || "مدیتیشن"}${item.duration ? " — مدت: " + item.duration : ""}</div>
         <div class="drawer-body">${item.info || ""}</div>
-        <div class="drawer-meta" style="margin-top:12px;">صداهای آرامش‌بخش برای مدیتیشن، یوگا، مطالعه و خواب — این فایل تا پایان فهرست همین دسته پخش می‌شود.</div>
+        <div class="drawer-meta" style="margin-top:12px;">منبع: <a href="${medSrc.url}" target="_blank" style="color:var(--accent);">${medSrc.label}</a></div>
       `;
       break;
-  }
+    }
+}
+  applyFontColor();
 }
 
+
+/* ===================================================================
+   جستجو
+   =================================================================== */
+var _searchQuery = '';
+
+function filterListBySearch(list, query) {
+  if (!query || query.trim() === '') return list;
+  var q = query.trim().toLowerCase();
+  return list.filter(function(item) {
+    var title = (item.title || '').toLowerCase();
+    var author = (item.author || item.performer || item.category || item.poet || item.collection || '').toLowerCase();
+    var info = (item.info || '').toLowerCase();
+    var collection = (item.collection || item.category || '').toLowerCase();
+    return title.indexOf(q) >= 0 || author.indexOf(q) >= 0 || info.indexOf(q) >= 0 || collection.indexOf(q) >= 0;
+  });
+}
 /* ===================================================================
    پخش
-   قوانین:
-   - شروع اول هر حالت: تصادفی (به‌جز داستان‌خوانی که همیشه از ابتدای فهرست شروع می‌شود)
-   - پس از شروع، پخش به ترتیب فهرست ادامه می‌یابد (نه شافل)
-   - در مدیتیشن، «بعدی» فقط داخل همان دسته حرکت می‌کند و در انتهای دسته متوقف می‌شود
    =================================================================== */
 function playIndex(i) {
-  const list = currentList();
+  const list = playbackList();
   if (!list.length) return;
   if (i < 0) i = list.length - 1;
   if (i >= list.length) i = 0;
   state.currentIndex = i;
   const item = list[i];
+  updateMediaSessionMetadata(item);
 
   if (item.synthType) {
     playSynthNoise(item.synthType);
@@ -468,11 +856,13 @@ function playIndex(i) {
   }
 
   document.getElementById("npTitle").textContent = item.title;
+  const miniTitleEl = document.getElementById("miniTitle");
+  if (miniTitleEl) miniTitleEl.textContent = item.title;
 
-  switch (state.mode) {
+  switch (item.mode) {
     case "golha":
       document.getElementById("npArtist").textContent = item.performer || "";
-      document.getElementById("npSub").textContent = item.subtitle || "رادیو گل‌ها";
+      document.getElementById("npSub").textContent = item.subtitle || "رادیو آواک";
       break;
     case "ganjoor":
       document.getElementById("npArtist").textContent = item.poet || "";
@@ -480,11 +870,11 @@ function playIndex(i) {
       break;
     case "hekayat":
       document.getElementById("npArtist").textContent = item.author || "رادیو حکایت";
-      document.getElementById("npSub").textContent = item.duration ? "مدت: " + item.duration : "داستان‌خوانی";
+      document.getElementById("npSub").textContent = item.duration ? "مدت: " + toFa(item.duration) : "داستان‌خوانی";
       break;
     case "meditation":
       document.getElementById("npArtist").textContent = item.category || "مدیتیشن";
-      document.getElementById("npSub").textContent = item.duration ? "مدت: " + item.duration : "آرامش و مدیتیشن";
+      document.getElementById("npSub").textContent = item.duration ? "مدت: " + toFa(item.duration) : "آرامش و مدیتیشن";
       break;
   }
 
@@ -494,20 +884,16 @@ function playIndex(i) {
 }
 
 function togglePlay() {
-  if (state.currentIndex === -1) {
+  if (!state.randomStartDone) {
     const list = currentList();
     if (!list.length) return;
-    let startIdx;
-    if (state.mode === "hekayat") {
-      startIdx = 0;
-    } else {
-      startIdx = Math.floor(Math.random() * list.length);
-    }
+    let startIdx = Math.floor(Math.random() * list.length);
+    state.playingMode = state.mode;
     state.randomStartDone = true;
     playIndex(startIdx);
     return;
   }
-  const item = currentList()[state.currentIndex];
+  const item = playbackList()[state.currentIndex];
   if (item && item.synthType) {
     if (noiseCtx && noiseCtx.state === 'running') {
       noiseCtx.suspend();
@@ -538,50 +924,215 @@ function sameCategoryIndices(list, categoryId) {
   return out;
 }
 
+function activeGroupKey(mode, item) {
+  if (!item) return null;
+  switch (mode) {
+    case "golha": return item.collectionId;
+    case "ganjoor": return item.poet;
+    case "hekayat": return item.collectionId;
+    case "meditation": return item.categoryId;
+    default: return null;
+  }
+}
+
+function sameGroupIndices(list, mode, key) {
+  const out = [];
+  list.forEach((it, idx) => { if (activeGroupKey(mode, it) === key) out.push(idx); });
+  return out;
+}
+
+/* زیرفهرست — سطح ریزتر از «فهرست». در گنجور یعنی «همین شاعر + همین قالب
+   شعر + همین باب/فصل» (باید حتماً شاعر هم در کلید باشد، وگرنه مثلاً
+   «ترجیع‌بند» عبید و «ترجیع‌بند» سعدی قاطی می‌شوند). در حالت‌هایی که
+   زیرفهرست واقعی دارند (مثل هزار و یک شب یا موسیقی نواحی، با فیلد
+   subCollection) یعنی «همین فهرست + همین زیرمجموعه». اگر فهرستی اصلاً
+   زیرفهرست ندارد (مثل گلستان سعدی)، به همان «فهرست» برمی‌گردد — یعنی
+   شافل/تکرارِ زیرفهرست، در چنین فهرستی خودش را با فهرست یکی می‌کند. */
+function subGroupKeyFor(mode, item) {
+  if (mode === 'ganjoor') {
+    return (item.poet || '') + '|' + (item.formLabel || '') + '|' + (item.chapterLabel || '');
+  }
+  if (item.subCollection) {
+    return activeGroupKey(mode, item) + '|' + item.subCollection;
+  }
+  return activeGroupKey(mode, item);
+}
+function subGroupIndices(list, mode, key) {
+  const out = [];
+  list.forEach((it, idx) => { if (subGroupKeyFor(mode, it) === key) out.push(idx); });
+  return out;
+}
+
+/* ===================================================================
+   شافل کل حالت‌ها — پخش تصادفی از میان هر چهار حالت
+   =================================================================== */
+function ensureAllModesLoaded() {
+  return Promise.all(MODE_ORDER.map((m) => ensureModeLoaded(m)));
+}
+
+function allModesFlatIndex() {
+  const out = [];
+  MODE_ORDER.forEach((m) => {
+    listForMode(m).forEach((item, idx) => out.push({ mode: m, idx }));
+  });
+  return out;
+}
+
+function playAcrossModes(excludeMode, excludeIdx) {
+  const all = allModesFlatIndex();
+  if (!all.length) return;
+  let pick;
+  if (all.length === 1) {
+    pick = all[0];
+  } else {
+    do {
+      pick = all[Math.floor(Math.random() * all.length)];
+    } while (pick.mode === excludeMode && pick.idx === excludeIdx);
+  }
+  ensureModeLoaded(pick.mode).then(() => {
+    if (state.mode !== pick.mode) {
+      state.mode = pick.mode;
+      state.randomStartDone = true;
+      updateModeUI();
+      renderPlaylist();
+    }
+    state.playingMode = pick.mode;
+    playIndex(pick.idx);
+  });
+}
+
+function stopPlaybackAtEnd() {
+  audio.pause();
+  stopSynthNoise();
+  if (noiseCtx) { try { noiseCtx.suspend(); } catch (e) {} }
+  state.playing = false;
+  updateTransportUI();
+}
+
+function pickRandomExcluding(indices, exclude) {
+  if (!indices.length) return -1;
+  if (indices.length === 1) return indices[0];
+  let idx;
+  do { idx = indices[Math.floor(Math.random() * indices.length)]; } while (idx === exclude);
+  return idx;
+}
+
 function nextTrack() {
-  const list = currentList();
+  const list = playbackList();
   if (!list.length) return;
 
   if (state.currentIndex === -1) { togglePlay(); return; }
 
+  if (state.shuffleMode === 'allModes') {
+    playAcrossModes(state.playingMode || state.mode, state.currentIndex);
+    return;
+  }
+
+  if (state.shuffleMode === 'modeList') {
+    const allIdx = list.map((_, i) => i);
+    playIndex(pickRandomExcluding(allIdx, state.currentIndex));
+    return;
+  }
+
   if (state.mode === "meditation") {
     const cat = list[state.currentIndex].categoryId;
     const sameCat = sameCategoryIndices(list, cat);
+    if (state.shuffleMode === 'list' || state.shuffleMode === 'subList') {
+      playIndex(pickRandomExcluding(sameCat, state.currentIndex));
+      return;
+    }
     const pos = sameCat.indexOf(state.currentIndex);
     if (pos === -1 || pos === sameCat.length - 1) {
-      audio.pause();
-      stopSynthNoise();
-      if (noiseCtx) { try { noiseCtx.suspend(); } catch (e) {} }
-      state.playing = false;
-      updateTransportUI();
+      if (state.repeatMode === 'list' && sameCat.length) { playIndex(sameCat[0]); return; }
+      stopPlaybackAtEnd();
       return;
     }
     playIndex(sameCat[pos + 1]);
     return;
   }
 
+  if (state.shuffleMode === 'list') {
+    const curKey = activeGroupKey(state.mode, list[state.currentIndex]);
+    const sameGroup = sameGroupIndices(list, state.mode, curKey);
+    playIndex(pickRandomExcluding(sameGroup, state.currentIndex));
+    return;
+  }
+  if (state.shuffleMode === 'subList') {
+    const curSubKey = subGroupKeyFor(state.mode, list[state.currentIndex]);
+    const sameSub = subGroupIndices(list, state.mode, curSubKey);
+    playIndex(pickRandomExcluding(sameSub, state.currentIndex));
+    return;
+  }
+
+  if (state.repeatMode === 'list') {
+    const curSubKey = subGroupKeyFor(state.mode, list[state.currentIndex]);
+    const sameSub = subGroupIndices(list, state.mode, curSubKey);
+    const pos = sameSub.indexOf(state.currentIndex);
+    if (pos === -1 || pos === sameSub.length - 1) { playIndex(sameSub[0]); return; }
+    playIndex(sameSub[pos + 1]);
+    return;
+  }
   let idx = state.currentIndex + 1;
-  if (idx >= list.length) idx = 0;
+  if (idx >= list.length) { stopPlaybackAtEnd(); return; }
   playIndex(idx);
 }
 
 function prevTrack() {
-  const list = currentList();
+  const list = playbackList();
   if (!list.length) return;
 
   if (state.currentIndex === -1) { togglePlay(); return; }
 
+  if (state.shuffleMode === 'allModes') {
+    playAcrossModes(state.playingMode || state.mode, state.currentIndex);
+    return;
+  }
+
+  if (state.shuffleMode === 'modeList') {
+    const allIdx = list.map((_, i) => i);
+    playIndex(pickRandomExcluding(allIdx, state.currentIndex));
+    return;
+  }
+
   if (state.mode === "meditation") {
     const cat = list[state.currentIndex].categoryId;
     const sameCat = sameCategoryIndices(list, cat);
+    if (state.shuffleMode === 'list' || state.shuffleMode === 'subList') {
+      playIndex(pickRandomExcluding(sameCat, state.currentIndex));
+      return;
+    }
     const pos = sameCat.indexOf(state.currentIndex);
-    if (pos <= 0) return;
+    if (pos <= 0) {
+      if (state.repeatMode === 'list' && sameCat.length) { playIndex(sameCat[sameCat.length - 1]); return; }
+      return;
+    }
     playIndex(sameCat[pos - 1]);
     return;
   }
 
+  if (state.shuffleMode === 'list') {
+    const curKey = activeGroupKey(state.mode, list[state.currentIndex]);
+    const sameGroup = sameGroupIndices(list, state.mode, curKey);
+    playIndex(pickRandomExcluding(sameGroup, state.currentIndex));
+    return;
+  }
+  if (state.shuffleMode === 'subList') {
+    const curSubKey = subGroupKeyFor(state.mode, list[state.currentIndex]);
+    const sameSub = subGroupIndices(list, state.mode, curSubKey);
+    playIndex(pickRandomExcluding(sameSub, state.currentIndex));
+    return;
+  }
+
+  if (state.repeatMode === 'list') {
+    const curSubKey = subGroupKeyFor(state.mode, list[state.currentIndex]);
+    const sameSub = subGroupIndices(list, state.mode, curSubKey);
+    const pos = sameSub.indexOf(state.currentIndex);
+    if (pos <= 0) { playIndex(sameSub[sameSub.length - 1]); return; }
+    playIndex(sameSub[pos - 1]);
+    return;
+  }
   let idx = state.currentIndex - 1;
-  if (idx < 0) idx = list.length - 1;
+  if (idx < 0) { return; }
   playIndex(idx);
 }
 
@@ -592,6 +1143,183 @@ function updateTransportUI() {
   pauseIcon.style.display = state.playing ? "block" : "none";
   document.getElementById("disc").classList.toggle("spinning", state.playing);
   document.getElementById("tonearm").classList.toggle("playing", state.playing);
+
+  const miniPlayIcon = document.getElementById("miniPlayIcon");
+  const miniPauseIcon = document.getElementById("miniPauseIcon");
+  if (miniPlayIcon && miniPauseIcon) {
+    miniPlayIcon.style.display = state.playing ? "none" : "block";
+    miniPauseIcon.style.display = state.playing ? "block" : "none";
+  }
+}
+
+/* ===================================================================
+   شافل و تکرار — دکمه‌های چند حالته
+   =================================================================== */
+const SHUFFLE_CYCLE = ['allModes', 'modeList', 'list', 'subList', 'off'];
+const REPEAT_CYCLE = ['one', 'list', 'off'];
+const SHUFFLE_TITLES = {
+  off: 'شافل: خاموش',
+  allModes: 'شافل: کل فهرست‌های کل حالات',
+  modeList: 'شافل: کل فهرست‌های این حالت',
+  list: 'شافل: این فهرست',
+  subList: 'شافل: این زیرفهرست'
+};
+const SHUFFLE_BADGES = {
+  allModes: 'همه حالت‌ها',
+  modeList: 'این حالت',
+  list: 'این فهرست',
+  subList: 'این زیرفهرست'
+};
+const REPEAT_TITLES = {
+  off: 'تکرار: خاموش',
+  list: 'تکرار: همین زیرفهرست',
+  one: 'تکرار: همین فایل در حال پخش'
+};
+
+/*
+ * قانون هماهنگی شافل و تکرار — این دو دکمه دو بعد جداگانه از یک پخش‌کننده‌اند
+ * (شافل = «ترتیب» پخش، تکرار = «مرز» پخش) اما بعضی ترکیب‌ها بی‌معنی یا
+ * گمراه‌کننده‌اند و باید خودکار حل شوند تا کاربر با دو دکمهٔ روشن که با هم
+ * تناقض دارند مواجه نشود:
+ *  ۱) «تکرار همین فایل» یعنی هیچ‌وقت جای دیگری نرو؛ این با هر نوع شافل
+ *     (که یعنی همیشه برو جای دیگر) در تضاد است، پس با فعال شدن هرکدام،
+ *     آن یکی خاموش می‌شود.
+ *  ۲) «تکرار همین فهرست» وقتی با «شافل کل حالت‌ها» ترکیب شود بی‌معنی است،
+ *     چون در آن حالت اصلاً یک «فهرست» واحد وجود ندارد که تکرار شود.
+ * ترکیب «شافل فهرست/حالت» با «تکرار همین فهرست» مشکلی ندارد و مثل بیشتر
+ * پخش‌کننده‌ها (مثلاً شافل + تکرار همه در اسپاتیفای) قابل فهم و کاربردی است.
+ */
+function resolveShuffleRepeatConflict() {
+  if (state.shuffleMode !== 'off' && state.repeatMode === 'one') {
+    state.repeatMode = 'off';
+  }
+  if (state.shuffleMode === 'allModes' && state.repeatMode === 'list') {
+    state.repeatMode = 'off';
+  }
+}
+
+function setStateBadge(btn, text, extraClass) {
+  let badgeEl = btn.querySelector('.' + extraClass);
+  if (text) {
+    if (!badgeEl) {
+      badgeEl = document.createElement('span');
+      badgeEl.className = extraClass;
+      btn.appendChild(badgeEl);
+    }
+    badgeEl.textContent = text;
+  } else if (badgeEl) {
+    badgeEl.remove();
+  }
+}
+
+function updateShuffleUI() {
+  const btn = document.getElementById('shuffleBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', state.shuffleMode !== 'off');
+  const title = SHUFFLE_TITLES[state.shuffleMode] || SHUFFLE_TITLES.off;
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+  let badge = SHUFFLE_BADGES[state.shuffleMode] || '';
+  setStateBadge(btn, badge, 'state-badge');
+}
+
+function updateRepeatUI() {
+  const btn = document.getElementById('repeatBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', state.repeatMode !== 'off');
+  const title = REPEAT_TITLES[state.repeatMode] || REPEAT_TITLES.off;
+  btn.title = title;
+  btn.setAttribute('aria-label', title);
+  setStateBadge(btn, state.repeatMode === 'one' ? '۱' : '', 'one-badge');
+}
+
+/* ===================================================================
+   رنگ متن / رنگ پوسته
+   =================================================================== */
+let _colorMode = 'text';
+
+/* ابزار ترکیب رنگ — برای ساخت طیف‌های روشن/تیره از رنگ انتخابی، با توجه
+   به پالت رنگ تمِ فعلی (روشن/تیره/رنگ‌های واسطه‌ای هر تم) */
+function parseCssColor(str) {
+  str = (str || '').trim();
+  if (!str) return null;
+  if (str[0] === '#') {
+    let hex = str.slice(1);
+    if (hex.length === 3) hex = hex.split('').map(function(c) { return c + c; }).join('');
+    const num = parseInt(hex, 16);
+    return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255, a: 1 };
+  }
+  const m = str.match(/rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)/i);
+  if (m) {
+    return { r: parseFloat(m[1]), g: parseFloat(m[2]), b: parseFloat(m[3]), a: m[4] !== undefined ? parseFloat(m[4]) : 1 };
+  }
+  return null;
+}
+function mixColors(c1, c2, t) {
+  return {
+    r: c1.r + (c2.r - c1.r) * t,
+    g: c1.g + (c2.g - c1.g) * t,
+    b: c1.b + (c2.b - c1.b) * t,
+    a: c1.a + (c2.a - c1.a) * t
+  };
+}
+function colorToCss(c) {
+  const r = Math.round(Math.max(0, Math.min(255, c.r)));
+  const g = Math.round(Math.max(0, Math.min(255, c.g)));
+  const b = Math.round(Math.max(0, Math.min(255, c.b)));
+  const a = Math.max(0, Math.min(1, c.a));
+  if (a >= 1) {
+    return '#' + [r, g, b].map(function(v) { return v.toString(16).padStart(2, '0'); }).join('');
+  }
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + (Math.round(a * 1000) / 1000) + ')';
+}
+function themeVar(name, fallback) {
+  try {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  } catch (e) { return fallback; }
+}
+
+function applySkinColor(color) {
+  const base = parseCssColor(color);
+  if (!base) return;
+  const root = document.documentElement;
+  const black = { r: 0, g: 0, b: 0, a: 1 };
+  const white = { r: 255, g: 255, b: 255, a: 1 };
+
+  // پردهٔ پررنگ‌تر (برای هایلایت/هاور) و پردهٔ کم‌رنگ‌تر (برای گرادینت حباب)
+  const strong = mixColors(base, black, 0.28);
+  const soft   = mixColors(base, white, 0.35);
+
+  // رنگ‌های فعلیِ پالتِ تم — تا طیف تازه با همان تم هماهنگ بماند
+  const curSurface  = parseCssColor(themeVar('--surface', '#fffdf8')) || white;
+  const curSurface2 = parseCssColor(themeVar('--surface-2', '#ece3d1')) || white;
+  const curBorder   = parseCssColor(themeVar('--border', 'rgba(0,0,0,.14)')) || { r: 0, g: 0, b: 0, a: .14 };
+  const curPaper    = parseCssColor(themeVar('--paper-bg', '#fffaf0')) || white;
+
+  const skinSurface  = mixColors(curSurface, base, 0.10);
+  const skinSurface2 = mixColors(curSurface2, base, 0.15);
+  const skinBorder   = mixColors(curBorder, base, 0.5);
+  const skinPaper    = mixColors(curPaper, base, 0.08);
+
+  root.style.setProperty('--accent', color);
+  root.style.setProperty('--gold', color);
+  root.style.setProperty('--skin-accent', color);
+  root.style.setProperty('--skin-accent-strong', colorToCss(strong));
+  root.style.setProperty('--skin-accent-2', colorToCss(soft));
+  root.style.setProperty('--skin-surface', colorToCss(skinSurface));
+  root.style.setProperty('--skin-surface-2', colorToCss(skinSurface2));
+  root.style.setProperty('--skin-border', colorToCss(skinBorder));
+  root.style.setProperty('--skin-glass', 'rgba(' + Math.round(base.r) + ',' + Math.round(base.g) + ',' + Math.round(base.b) + ',0.16)');
+  root.style.setProperty('--skin-paper', colorToCss(skinPaper));
+}
+function refreshColorBtnsActiveState() {
+  const saved = _colorMode === 'skin'
+    ? (function() { try { return localStorage.getItem('golava-skincolor'); } catch(e) { return null; } })()
+    : (function() { try { return localStorage.getItem('golava-fontcolor'); } catch(e) { return null; } })();
+  document.querySelectorAll('.color-btn').forEach(function(b) {
+    b.classList.toggle('active', !!saved && b.dataset.color === saved);
+  });
 }
 
 /* رویدادهای پخش */
@@ -602,15 +1330,34 @@ audio.addEventListener("timeupdate", () => {
   }
   document.getElementById("curTime").textContent = formatTime(audio.currentTime);
   document.getElementById("durTime").textContent = formatTime(audio.duration);
+  if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+    try {
+      if (!isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration,
+          playbackRate: audio.playbackRate || 1,
+          position: Math.min(audio.currentTime, audio.duration)
+        });
+      }
+    } catch (e) {}
+  }
 });
-audio.addEventListener("ended", () => nextTrack());
+audio.addEventListener("ended", () => {
+  if (state.repeatMode === 'one' && state.currentIndex !== -1) {
+    playIndex(state.currentIndex);
+    return;
+  }
+  nextTrack();
+});
 audio.addEventListener("pause", () => {
   state.playing = false;
   updateTransportUI();
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
 });
 audio.addEventListener("play", () => {
   state.playing = true;
   updateTransportUI();
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
 });
 audio.addEventListener("error", () => {
   document.getElementById("npTitle").textContent = "خطا در پخش — رد شدن به بعدی";
@@ -629,6 +1376,8 @@ function clearSleepTimer() {
   const label = document.getElementById("sleepTimerLabel");
   if (label) label.textContent = "خاموش";
   document.querySelectorAll(".sleep-option").forEach(b => b.classList.remove("active"));
+  const inline = document.getElementById("sleepTimerInline");
+  if (inline) inline.style.display = "none";
 }
 
 function setSleepTimer(minutes) {
@@ -638,9 +1387,12 @@ function setSleepTimer(minutes) {
   document.querySelectorAll(".sleep-option").forEach(b => {
     b.classList.toggle("active", parseInt(b.dataset.minutes, 10) === minutes);
   });
+  const inline = document.getElementById("sleepTimerInline");
+  if (inline) inline.style.display = "inline-flex";
   state.sleepTimerId = setInterval(() => {
     const remain = state.sleepTimerEndAt - Date.now();
     const label = document.getElementById("sleepTimerLabel");
+    const inlineLabel = document.getElementById("sleepTimerInlineLabel");
     if (remain <= 0) {
       audio.pause();
       stopSynthNoise();
@@ -650,12 +1402,101 @@ function setSleepTimer(minutes) {
       clearSleepTimer();
       return;
     }
-    if (label) {
-      const m = Math.floor(remain / 60000);
-      const s = Math.floor((remain % 60000) / 1000).toString().padStart(2, "0");
-      label.textContent = toFa(`${m}:${s}`);
-    }
+    const m = Math.floor(remain / 60000);
+    const s = Math.floor((remain % 60000) / 1000).toString().padStart(2, "0");
+    const txt = toFa(`${m}:${s}`);
+    if (label) label.textContent = txt;
+    if (inlineLabel) inlineLabel.textContent = txt;
   }, 1000);
+}
+
+/* ===================================================================
+   اشتراک‌گذاری و مینی‌پلیر
+   =================================================================== */
+function showToast(msg) {
+  let t = document.getElementById('golavaToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'golavaToast';
+    t.className = 'golava-toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function shareCurrentTrack() {
+  const list = playbackList();
+  const item = list[state.currentIndex];
+  if (!item || !item.src) { showToast('ابتدا چیزی را پخش کنید'); return; }
+  const link = buildDeepLink(item);
+  const shareData = { title: item.title, text: 'رادیو آواک — ' + item.title, url: link };
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard.writeText(link);
+      showToast('لینک صفحه کپی شد');
+    }
+  } catch (e) {
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('لینک صفحه کپی شد');
+    } catch (e2) {}
+  }
+}
+
+/* ===================================================================
+   لینک مستقیم پخش — برای اشتراک‌گذاری (مثلاً در تلگرام) و پخش خودکار
+   =================================================================== */
+function buildDeepLink(item) {
+  const key = item.src || item.url || '';
+  const base = window.location.origin + window.location.pathname;
+  return base + '?play=' + encodeURIComponent(item.mode) + '&src=' + encodeURIComponent(key);
+}
+
+function tryDeepLinkPlay() {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('play');
+  const src = params.get('src');
+  if (!mode || !src) return false;
+  ensureModeLoaded(mode).then(function() {
+    // برای گنجور، شعر لینک‌شده ممکن است مال یکی از شاعرانی باشد که هنوز
+    // بارگذاری نشده — پس قبل از جستجو مطمئن می‌شویم همه بارگذاری شده‌اند
+    const afterLazy = mode === 'ganjoor' ? loadLazyGanjoorPoets() : Promise.resolve();
+    afterLazy.then(function() {
+      const list = listForMode(mode);
+      const idx = list.findIndex(function(it) { return it.src === src || it.url === src; });
+      if (idx === -1) return;
+      state.mode = mode;
+      state.playingMode = mode;
+      state.randomStartDone = true;
+      updateModeUI();
+      renderPlaylist();
+      playIndex(idx);
+      audio.play().catch(function() {});
+    });
+  });
+  return true;
+}
+
+function setupMiniPlayer() {
+  const wrap = document.querySelector('.player-wrap');
+  const mini = document.getElementById('miniPlayer');
+  if (!wrap || !mini || !window.IntersectionObserver) return;
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      const scrolledPast = entry.boundingClientRect.top < 0 && !entry.isIntersecting;
+      mini.classList.toggle('show', scrolledPast);
+    });
+  }, { threshold: 0 });
+  observer.observe(wrap);
+
+  document.getElementById('miniPlayBtn').addEventListener('click', togglePlay);
+  document.getElementById('miniNextBtn').addEventListener('click', nextTrack);
+  document.getElementById('miniPrevBtn').addEventListener('click', prevTrack);
 }
 
 /* ===================================================================
@@ -667,6 +1508,7 @@ function buildGanjoorFlatList() {
     poet: p.poetName,
     poetNickname: p.poetNickname || '',
     formLabel: p.catTitle || 'شعر',
+    chapterLabel: p.subCat || null,
     title: p.title || p.fullTitle || '',
     fullTitle: p.fullTitle || '',
     text: p.plainText || '',
@@ -679,33 +1521,227 @@ function buildGanjoorFlatList() {
 /* ===================================================================
    مقداردهی اولیه
    =================================================================== */
+/* ===================================================================
+   لود تنبل اسکریپت‌های داده بر اساس حالت انتخابی
+   =================================================================== */
+const MODE_SCRIPTS = {
+  golha: ['golha-data.js', 'playlist-data.js', 'regional-music-data.js'],
+  ganjoor: [
+    // index first (5KB) — shows all 28 poets immediately
+    'ganjoor-index.js',
+    // eager poets (<50KB each) load upfront
+    'ganjoor-khajoo.js', 'ganjoor-obeyd.js', 'ganjoor-seyf.js', 'ganjoor-salim.js', 'ganjoor-anvari.js', 'ganjoor-eshghi.js', 'ganjoor-nezami.js',
+    // aggregator + extra
+    'ganjoor-data.js', 'amirkhadem-data.js'
+  ],
+  hekayat: ['hekayat-data.js', 'redcircle-data.js', 'hezar-data.js', 'golestan-data.js', 'ghesegoo-data.js', 'castbox-data.js'],
+  meditation: ['khabcast-data.js', 'meditation-data.js', 'mindful-data.js', 'castbox-data.js']
+};
+
+const _loadedScripts = new Set();
+function loadScript(src) {
+  if (_loadedScripts.has(src)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = () => { _loadedScripts.add(src); resolve(); };
+    s.onerror = () => reject(new Error('خطا در بارگذاری ' + src));
+    document.body.appendChild(s);
+  });
+}
+
+function loadModeScripts(mode) {
+  const files = MODE_SCRIPTS[mode] || [];
+  // ganjoor-data.js + amirkhadem-data.js depend on GANJOOR_POEMS_* vars from
+  // ganjoor-index.js + aggregators must run after their deps
+  const aggregate = files.filter(function(f) { return f === 'ganjoor-data.js' || f === 'amirkhadem-data.js'; });
+  const other = files.filter(function(f) { return aggregate.indexOf(f) < 0; });
+  return Promise.all(other.map(loadScript)).then(function() {
+    return Promise.all(aggregate.map(loadScript));
+  });
+}
+
+// Lazy-load remaining large ganjoor poet files in background
+// Called after initial UI render so user sees something immediately
+var _lazyLoading = false;
+var _lazyLoadingPromise = null;
+function loadLazyGanjoorPoets() {
+  if (_lazyLoadingPromise) return _lazyLoadingPromise;
+  if (typeof GANJOOR_INDEX === 'undefined') return Promise.resolve();
+  _lazyLoading = true;
+  var chain = Promise.resolve();
+  GANJOOR_INDEX.forEach(function(poet) {
+    if (!poet.lazy) return;
+    chain = chain.then(function() {
+      return loadScript(poet.file).then(function() {
+        // Rebuild GANJOOR_POEMS + app state
+        try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch(e) {}
+        buildGanjoorList();
+        renderPlaylist();
+        renderDrawer();
+      }).catch(function() {});
+    });
+  });
+  _lazyLoadingPromise = chain.then(function() {
+    _lazyLoading = false;
+  });
+  return _lazyLoadingPromise;
+}
+
+function buildGolhaList() {
+  state.golhaList = [
+    ...(typeof buildGolhaFlatList === 'function' ? buildGolhaFlatList() : []),
+    ...(typeof buildPlaylistFlatList === 'function' ? buildPlaylistFlatList() : [])
+  ];
+  const plLen = typeof buildPlaylistFlatList === 'function' ? buildPlaylistFlatList().length : 0;
+  const plStart = state.golhaList.length - plLen;
+  if (plStart >= 0 && plLen > 0) {
+    const pl = state.golhaList.splice(plStart);
+    pl.reverse();
+    state.golhaList.push(...pl);
+  }
+  state.golhaList.push(...(typeof buildRegionalMusicFlatList === 'function' ? buildRegionalMusicFlatList() : []));
+}
+
+function buildGanjoorList() {
+  // Rebuild GANJOOR_POEMS from currently-loaded poet vars
+  try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch(e) {}
+  state.ganjoorList = [
+    ...((typeof GANJOOR_POEMS !== 'undefined' && GANJOOR_POEMS.length) ? buildGanjoorFlatList() : []),
+    ...(typeof buildAmirKhademFlatList === 'function' ? buildAmirKhademFlatList() : [])
+  ];
+}
+
+function buildHekayatList() {
+  const hezarList = typeof buildHezarFlatList === 'function' ? buildHezarFlatList().slice().reverse() : [];
+  state.hekayatList = [
+    ...(typeof buildHekayatFlatList === 'function' ? buildHekayatFlatList() : []),
+    ...(typeof buildRedcircleFlatList === 'function' ? buildRedcircleFlatList() : []),
+    ...hezarList,
+    ...(typeof buildGolestanFlatList === 'function' ? buildGolestanFlatList() : []),
+    ...(typeof buildGhesegooFlatList === 'function' ? buildGhesegooFlatList() : []),
+    ...(typeof buildCastboxHekayatFlatList === 'function' ? buildCastboxHekayatFlatList() : [])
+  ];
+  state.hekayatList.reverse();
+}
+
+function buildMeditationList() {
+  state.meditationList = [
+    ...(typeof buildKhabcastFlatList === 'function' ? buildKhabcastFlatList() : []),
+    ...(typeof buildMeditationFlatList === 'function' ? buildMeditationFlatList() : []),
+    ...(typeof buildMindfulFlatList === 'function' ? buildMindfulFlatList() : []),
+    ...(typeof buildCastboxMeditationFlatList === 'function' ? buildCastboxMeditationFlatList() : [])
+  ];
+  // Fix items missing categoryId (khabcast from hekayat mode)
+  state.meditationList.forEach(function(m) {
+    if (!m.categoryId) m.categoryId = m.collectionId || 'other';
+    if (!m.category) m.category = m.collection || 'مدیتیشن';
+  });
+  // Reorder meditation: khabcast first, then mother-child, then rest. Each group reversed.
+  if (state.meditationList.length) {
+    var khabcastItems = [];
+    var motherChild = [];
+    var rest = [];
+    state.meditationList.forEach(function(item) {
+      if (item.collectionId === 'khabcast') khabcastItems.push(item);
+      else if (item.categoryId === 'mother-child') motherChild.push(item);
+      else rest.push(item);
+    });
+    khabcastItems.reverse();
+    motherChild.reverse();
+    rest.reverse();
+    state.meditationList = [].concat(khabcastItems, motherChild, rest);
+  }
+}
+
+function buildListForMode(mode) {
+  switch (mode) {
+    case 'golha': buildGolhaList(); break;
+    case 'ganjoor': buildGanjoorList(); break;
+    case 'hekayat': buildHekayatList(); break;
+    case 'meditation': buildMeditationList(); break;
+  }
+}
+
+const _modeLoaded = { golha: false, ganjoor: false, hekayat: false, meditation: false };
+const _modeLoadingPromise = {};
+function ensureModeLoaded(mode) {
+  if (_modeLoaded[mode]) return Promise.resolve();
+  if (_modeLoadingPromise[mode]) return _modeLoadingPromise[mode];
+  const p = loadModeScripts(mode).then(() => {
+    buildListForMode(mode);
+    _modeLoaded[mode] = true;
+    // توجه: بارگذاری کامل شاعران سنگین گنجور (loadLazyGanjoorPoets) اینجا
+    // دیگر خودکار صدا زده نمی‌شود — چون این تابع هر بار «حالت را آماده کن»
+    // (مثلاً پیش‌گرمی پس‌زمینه برای شافل کل حالت‌ها) صدا زده می‌شد،
+    // ده‌ها مگابایت شعر (دیوان شمس ۷.۵ مگ، سعدی ۴.۷ مگ، عطار، صائب، ...)
+    // را برای هر بازدیدکننده‌ای — حتی کسی که هیچ‌وقت وارد گنجور نمی‌شود —
+    // دانلود می‌کرد. حالا فقط وقتی کاربر واقعاً وارد حالت گنجور می‌شود
+    // (در switchToMode) بارگذاری می‌شود.
+  }).catch((err) => {
+    console.error(err);
+  }).finally(() => {
+    delete _modeLoadingPromise[mode];
+  });
+  _modeLoadingPromise[mode] = p;
+  return p;
+}
+
 function init() {
   loadSavedSettings();
   wireUI();
 
-  state.golhaList = buildGolhaFlatList();
-  state.ganjoorList = (typeof GANJOOR_POEMS !== 'undefined' && GANJOOR_POEMS.length) ? buildGanjoorFlatList() : [];
-  state.hekayatList = [
-    ...(typeof buildHekayatFlatList === 'function' ? buildHekayatFlatList() : []),
-    ...(typeof buildRedcircleFlatList === 'function' ? buildRedcircleFlatList() : []),
-    ...(typeof buildHezarFlatList === 'function' ? buildHezarFlatList() : []),
-    ...(typeof buildGolestanFlatList === 'function' ? buildGolestanFlatList() : [])
-  ];
-  state.meditationList = typeof buildMeditationFlatList === 'function' ? buildMeditationFlatList() : [];
+  // پیش‌فرض شافل «کل فهرست‌های کل حالات» است، پس از همان ابتدا هر چهار
+  // حالت را (در پس‌زمینه، بدون قفل کردن رابط کاربری) آماده می‌کنیم
+  if (state.shuffleMode === 'allModes') { ensureAllModesLoaded(); }
+
+  // تصمیم دربارهٔ لود تنبل گنجور: چون پیش‌فرض برنامه «شافل کل حالات» است،
+  // نگه‌داشتن گنجور کاملاً خالی تا کلیک کاربر باعث می‌شد شافل اولیه اصلاً
+  // شعری پخش نکند. برای رفع این تناقض: صفحه اول سبک/سریع بالا می‌آید
+  // (فقط شاعران سبک گنجور — index.js + ۷ شاعر کوچک)، و همان لحظه —
+  // بدون قفل کردن چیزی، در idle time — بارگذاری کامل بقیهٔ شاعران در
+  // پس‌زمینه شروع می‌شود؛ در عمل طی چند ثانیهٔ اول آماده می‌شود، یعنی هم
+  // صفحه سبک باز می‌شود هم شافل به‌زودی به کل گنجور دسترسی دارد. کلیک
+  // روی هر شاعر هم همچنان همان شاعر را فوری در اولویت لود می‌کند.
+  ensureModeLoaded('ganjoor').then(function() {
+    const scheduleIdle = window.requestIdleCallback || function(fn) { return setTimeout(fn, 1200); };
+    scheduleIdle(function() { ensureAllGanjoorPoetsLoaded(); }, { timeout: 6000 });
+  });
+
+  state.golhaList = [];
+  state.ganjoorList = [];
+  state.hekayatList = [];
+  state.meditationList = [];
 
   updateModeUI();
   renderPlaylist();
   renderDrawer();
 
-  if (state.golhaList.length) {
-    document.getElementById("npTitle").textContent = "رادیو گل‌ها — شروع پخش";
-    document.getElementById("npArtist").textContent = "";
-    document.getElementById("npSub").textContent = "در حال پخش از آرشیو آزاد";
-    setTimeout(() => {
-      state.randomStartDone = true;
-      playIndex(Math.floor(Math.random() * state.golhaList.length));
-    }, 500);
-  }
+  if (tryDeepLinkPlay()) return;
+
+  ensureModeLoaded('golha').then(function() {
+    renderPlaylist();
+    renderDrawer();
+
+    // Start in golha mode — random from regional music playlist
+    if (state.golhaList.length) {
+      var regIdxs = [];
+      state.golhaList.forEach(function(it, i) {
+        if (it.collectionId === 'regional-music') regIdxs.push(i);
+      });
+      var pool = regIdxs.length ? regIdxs : state.golhaList.map(function(_, i) { return i; });
+      var startIdx = pool[Math.floor(Math.random() * pool.length)];
+      document.getElementById("npTitle").textContent = "رادیو آواک";
+      document.getElementById("npArtist").textContent = "";
+      document.getElementById("npSub").textContent = "حالت گل‌ها — پخش تصادفی از موسیقی نواحی";
+      setTimeout(function() {
+        state.mode = 'golha';
+        state.playingMode = 'golha';
+        state.randomStartDone = true;
+        playIndex(startIdx);
+      }, 800);
+    }
+  });
 }
 
 /* ===================================================================
@@ -755,28 +1791,26 @@ function wireUI() {
   });
 
   document.querySelectorAll(".theme-swatch").forEach((el) => {
-    el.addEventListener("click", () => applyTheme(el.dataset.theme));
+    el.addEventListener("click", () => {
+      applyTheme(el.dataset.theme);
+      // اگر رنگ پوسته‌ای انتخاب شده، طیفش را با پالت تم تازه دوباره بساز
+      try {
+        const savedSkin = localStorage.getItem('golava-skincolor');
+        if (savedSkin) applySkinColor(savedSkin);
+      } catch(e) {}
+    });
   });
-  document.querySelectorAll(".font-options button").forEach((el) => {
-    if (el.dataset.font) el.addEventListener("click", () => applyFont(el.dataset.font));
+
+  document.querySelectorAll("[data-fontpack]").forEach((el) => {
+    el.addEventListener("click", () => applyFontPack(el.dataset.fontpack));
   });
+  document.querySelectorAll("[data-weight]").forEach((el) => {
+    el.addEventListener("click", () => applyFontWeight(el.dataset.weight));
+  });
+
   document.getElementById("fontSizeRange").addEventListener("input", (e) => {
     applyFontScale(parseInt(e.target.value, 10));
   });
-
-  document.querySelectorAll('[data-weight]').forEach(el => {
-    el.addEventListener('click', () => {
-      const w = el.dataset.weight;
-      document.documentElement.style.setProperty('--font-weight', w);
-      document.querySelectorAll('[data-weight]').forEach(b => b.classList.toggle('active', b.dataset.weight === w));
-      try { localStorage.setItem('golava-weight', w); } catch(e) {}
-    });
-  });
-  try {
-    const w = localStorage.getItem('golava-weight') || '400';
-    document.documentElement.style.setProperty('--font-weight', w);
-    document.querySelectorAll('[data-weight]').forEach(b => b.classList.toggle('active', b.dataset.weight === w));
-  } catch(e) {}
 
   document.getElementById('lineHeightRange').addEventListener('input', (e) => {
     const v = e.target.value;
@@ -820,6 +1854,144 @@ function wireUI() {
       if (!m) { clearSleepTimer(); } else { setSleepTimer(m); }
     });
   });
+
+  document.getElementById('shuffleBtn').addEventListener('click', () => {
+    const curIdx = SHUFFLE_CYCLE.indexOf(state.shuffleMode);
+    state.shuffleMode = SHUFFLE_CYCLE[(curIdx + 1) % SHUFFLE_CYCLE.length];
+    resolveShuffleRepeatConflict('shuffle');
+    if (state.shuffleMode === 'allModes') { ensureAllModesLoaded(); ensureAllGanjoorPoetsLoaded(); }
+    if (state.shuffleMode === 'modeList' && state.mode === 'ganjoor') { ensureAllGanjoorPoetsLoaded(); }
+    updateShuffleUI();
+    updateRepeatUI();
+  });
+  document.getElementById('repeatBtn').addEventListener('click', () => {
+    const curIdx = REPEAT_CYCLE.indexOf(state.repeatMode);
+    state.repeatMode = REPEAT_CYCLE[(curIdx + 1) % REPEAT_CYCLE.length];
+    resolveShuffleRepeatConflict('repeat');
+    updateRepeatUI();
+    updateShuffleUI();
+  });
+  updateShuffleUI();
+  updateRepeatUI();
+  document.getElementById('shareBtn').addEventListener('click', shareCurrentTrack);
+
+  // Font/skin color buttons
+  document.querySelectorAll('.color-mode-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      _colorMode = this.dataset.colormode;
+      document.querySelectorAll('.color-mode-btn').forEach(function(b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      refreshColorBtnsActiveState();
+    });
+  });
+  document.querySelectorAll('.color-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var color = this.dataset.color;
+      if (_colorMode === 'skin') {
+        applySkinColor(color);
+        try { localStorage.setItem('golava-skincolor', color); } catch(e) {}
+      } else {
+        document.querySelectorAll('.drawer-content .drawer-body, .drawer-content h3, .drawer-content .drawer-meta').forEach(function(el) {
+          el.style.color = color;
+        });
+        try { localStorage.setItem('golava-fontcolor', color); } catch(e) {}
+      }
+      refreshColorBtnsActiveState();
+    });
+  });
+  // Restore saved font color
+  try {
+    var savedColor = localStorage.getItem('golava-fontcolor');
+    if (savedColor) {
+      document.querySelectorAll('.drawer-content .drawer-body, .drawer-content h3, .drawer-content .drawer-meta').forEach(function(el) {
+        el.style.color = savedColor;
+      });
+    }
+  } catch(e) {}
+  // Restore saved skin color
+  try {
+    var savedSkin = localStorage.getItem('golava-skincolor');
+    if (savedSkin) applySkinColor(savedSkin);
+  } catch(e) {}
+  refreshColorBtnsActiveState();
+
+  // Search
+  var searchInput = document.getElementById('searchInput');
+  var searchClearBtn = document.getElementById('searchClearBtn');
+  if (searchInput) {
+    var searchTimer;
+    searchInput.addEventListener('input', function() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function() {
+        _searchQuery = searchInput.value.trim();
+        renderPlaylist();
+      }, 300);
+    });
+    if (searchClearBtn) {
+      searchClearBtn.addEventListener('click', function() {
+        searchInput.value = '';
+        _searchQuery = '';
+        renderPlaylist();
+        searchInput.focus();
+      });
+    }
+  }
+
+  setupMiniPlayer();
+
+  var jumpBtn = document.getElementById('jumpToPlayingBtn');
+  if (jumpBtn) {
+    jumpBtn.addEventListener('click', jumpToPlayingTrack);
+  }
+  var scrollTopBtn = document.getElementById('scrollTopBtn');
+  if (scrollTopBtn) {
+    scrollTopBtn.addEventListener('click', function() {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+}
+
+/* ===================================================================
+   پرش به فایل در حال پخش در فهرست
+   =================================================================== */
+function revealPlayingRow() {
+  if (state.currentIndex === -1) return;
+  var row = document.querySelector('.track-row[data-index="' + state.currentIndex + '"]');
+  if (!row) return;
+  var el = row;
+  while (el && el !== document.body) {
+    if (el.tagName === 'DETAILS') el.open = true;
+    el = el.parentElement;
+  }
+  row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  row.classList.remove('flash-highlight');
+  void row.offsetWidth;
+  row.classList.add('flash-highlight');
+  setTimeout(function() { row.classList.remove('flash-highlight'); }, 1700);
+}
+
+function jumpToPlayingTrack() {
+  if (state.currentIndex === -1) return;
+  var targetMode = state.playingMode || state.mode;
+  var needsModeSwitch = state.mode !== targetMode;
+  var needsSearchClear = !!_searchQuery;
+
+  if (needsModeSwitch) {
+    state.mode = targetMode;
+    state.randomStartDone = true;
+    updateModeUI();
+  }
+  if (needsSearchClear) {
+    _searchQuery = '';
+    var si = document.getElementById('searchInput');
+    if (si) si.value = '';
+  }
+  if (needsModeSwitch || needsSearchClear) {
+    renderPlaylist();
+    requestAnimationFrame(function() { requestAnimationFrame(revealPlayingRow); });
+  } else {
+    revealPlayingRow();
+  }
 }
 
 /* ===================================================================
@@ -835,26 +2007,35 @@ function switchToMode(newMode) {
   if (state.mode === newMode) return;
 
   state.mode = newMode;
-
-  audio.pause();
-  stopSynthNoise();
-  if (noiseCtx) { try { noiseCtx.suspend(); } catch (e) {} }
-  state.playing = false;
-  state.currentIndex = -1;
+  // پخش فعلی قطع نمی‌شود؛ فقط با زدن پلی یا انتخاب از فهرست، پخش این حالت آغاز می‌شود
   state.randomStartDone = false;
-  updateTransportUI();
 
   updateModeUI();
 
-  const list = currentList();
-  if (list.length === 0) {
-    document.getElementById("npTitle").textContent = "برای شروع، از فهرست انتخاب کنید";
+  if (state.currentIndex === -1) {
+    document.getElementById("npTitle").textContent = "برای شروع، از فهرست انتخاب کنید یا پلی را بزنید";
     document.getElementById("npArtist").textContent = "";
     document.getElementById("npSub").textContent = "";
   }
 
   renderPlaylist();
   renderDrawer();
+
+  // اگر داده‌های این حالت هنوز لود نشده، همین الان لودشان را شروع کن
+  ensureModeLoaded(newMode).then(() => {
+    if (state.mode === newMode) {
+      renderPlaylist();
+      renderDrawer();
+    }
+    // توجه: دیگر همهٔ شاعران گنجور یک‌جا بارگذاری نمی‌شوند — هرکدام فقط با
+    // کلیک روی خودش (در groupedForRender/renderPlaylist → loadOnePoetLazy)
+    // بارگذاری می‌شود. توجه: این‌جا عمداً بر اساس state.shuffleMode
+    // تصمیم نمی‌گیریم، چون «کل حالات» پیش‌فرضِ همیشگی برنامه است و اگر
+    // این‌جا هم بررسی‌اش کنیم، تقریباً هر بازدیدکننده‌ای با اولین ورود
+    // به گنجور کل ۳۰ مگابایت را دانلود می‌کرد. آن تصمیم فقط در کلیک
+    // واقعی روی دکمهٔ شافل (پایین‌تر) گرفته می‌شود، که نشانهٔ قصد آگاهانه
+    // است.
+  });
 }
 
 /* شروع */

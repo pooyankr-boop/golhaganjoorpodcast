@@ -1174,7 +1174,7 @@ const REDCIRCLE_EPISODES = [
 ];
 
 function buildRedcircleFlatList() {
-  return REDCIRCLE_EPISODES.slice().reverse().map(p => ({
+  return REDCIRCLE_EPISODES.slice().map(p => ({
     mode: "hekayat",
     collectionId: "ketabsoti",
     collection: "کتاب صوتی ناصر زراعتی (Ketab Soti)",
