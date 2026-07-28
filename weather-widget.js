@@ -58,7 +58,6 @@
   var firstShown = false;
   var usedIdx = [];
 
-  // شافل (Fisher-Yates)
   function shuffle(arr) {
     for (var i = arr.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
@@ -67,7 +66,6 @@
     return arr;
   }
 
-  // دسته‌بندی بعدی: اولین بار پایتخت‌ها + ۲ تا، بعد رندوم ۵ تایی از بقیه
   function nextBatch() {
     if (!firstShown) {
       firstShown = true;
@@ -106,22 +104,39 @@
     return '#dc2626';
   }
 
+  function windArrow(deg) {
+    if (deg < 22.5 || deg >= 337.5) return '↑';
+    if (deg < 67.5) return '↗';
+    if (deg < 112.5) return '→';
+    if (deg < 157.5) return '↘';
+    if (deg < 202.5) return '↓';
+    if (deg < 247.5) return '↙';
+    if (deg < 292.5) return '←';
+    return '↖';
+  }
+
   function fetchWeather(city) {
     return fetch('https://api.open-meteo.com/v1/forecast?latitude=' + city.lat +
       '&longitude=' + city.lon +
-      '&current=temperature_2m,relative_humidity_2m,weather_code&timezone=auto')
+      '&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m&timezone=auto')
       .then(function (r) { return r.json(); });
   }
 
-  // دو سطر: ۱) آیکون + اسم شهر  ۲) دما + رطوبت
+  // دو سطر: ۱) آیکون + اسم شهر  ۲) دما + رطوبت + باد + کیفیت هوا
   function buildRowHtml(city, data) {
-    var temp = '—', icon = '🌡️', humidity = '', color = 'inherit';
+    var temp = '—', icon = '🌡️', humidity = '', windHtml = '', color = 'inherit';
     if (data && data.current) {
       var t = Math.round(data.current.temperature_2m);
       temp = toFaNum(t) + '°';
       color = tempColor(t);
       icon = WEATHER_ICONS[data.current.weather_code] || '🌡️';
       humidity = toFaNum(Math.round(data.current.relative_humidity_2m)) + '٪';
+      if (data.current.wind_speed_10m !== undefined && data.current.wind_speed_10m !== null) {
+        var ws = Math.round(data.current.wind_speed_10m);
+        var wd = data.current.wind_direction_10m;
+        var arrow = wd !== null && wd !== undefined ? windArrow(wd) : '';
+        windHtml = '<span class="w-wind">' + arrow + toFaNum(ws) + '</span>';
+      }
     }
     return (
       '<div class="weather-row">' +
@@ -132,6 +147,7 @@
         '<div class="w-info-line">' +
           '<span class="w-temp" style="color:' + color + '">' + temp + '</span>' +
           '<span class="w-humidity">' + humidity + '</span>' +
+          windHtml +
         '</div>' +
       '</div>'
     );
@@ -179,31 +195,18 @@
     if (!el) return;
     try {
       var d = new Date();
-      // ????: ???? ???? ??? ?? ?? ??? ??? ???
       var iranFmt = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
         weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
       });
-      // ???????/???? (?? ???? ???? ???? ???? ?????? ????)
-      var afgFmt = new Intl.DateTimeFormat('fa-AF-u-ca-persian', {
-        day: 'numeric', month: 'long'
-      });
-      // ?? ???? ???? ?? ?? ???? ??? : "????????? ?? ???/??? ????"
       var iranParts = iranFmt.formatToParts(d);
-      var afgParts = afgFmt.formatToParts(d);
-      var dayName = '';
-      var iranDay = '', iranMonth = '', iranYear = '';
+      var dayName = '', iranDay = '', iranMonth = '', iranYear = '';
       iranParts.forEach(function(p) {
         if (p.type === 'weekday') dayName = p.value;
         if (p.type === 'day') iranDay = p.value;
         if (p.type === 'month') iranMonth = p.value;
         if (p.type === 'year') iranYear = p.value;
       });
-      var afgMonth = '';
-      afgParts.forEach(function(p) {
-        if (p.type === 'month') afgMonth = p.value;
-      });
-      // ???? ???? "????????? ? ????/???  ?????"
-      el.textContent = dayName + '، ' + iranDay + ' ' + iranMonth + '/' + afgMonth + ' ' + iranYear;
+      el.textContent = dayName + '، ' + iranDay + ' ' + iranMonth + ' ' + iranYear;
     } catch (e) { el.textContent = ''; }
   }
 
@@ -223,7 +226,6 @@
       } catch (e) {}
     }
     renderJalaliDate();
-    // موبایل: باکس ابتدا بسته باشد
     if (window.innerWidth <= 480) {
       widget.classList.add('collapsed');
     }

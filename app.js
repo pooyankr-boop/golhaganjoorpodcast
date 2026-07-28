@@ -127,7 +127,12 @@ let state = {
   shuffleMode: 'allModes', // 'off' | 'allModes' | 'modeList' | 'list' | 'subList' — پیش‌فرض: کل حالات
   repeatMode: 'off',    // 'off' | 'list' | 'one'
   sleepTimerEndAt: null,
-  sleepTimerId: null
+  sleepTimerId: null,
+  // فهرست پخش
+  playlist: [],
+  playlistEnabled: false,
+  playlistRepeat: 'off',
+  playlistShuffle: false // 'off' | 'one' | 'all'
 };
 
 /* ===================================================================
@@ -490,17 +495,29 @@ function loadOnePoetLazy(poetKey, files) {
 // فعال می‌کند، یعنی واقعاً دنبال تنوع کامل است — پس همین‌جا (نه در بارگذاری
 // اولیهٔ صفحه) بقیهٔ شاعران سنگین را هم در پس‌زمینه بارگذاری می‌کنیم تا
 // شافل واقعاً از کل گنجور پخش کند، نه فقط از چیزهایی که تا الان کلیک شده
-var _allGanjoorLoadingStarted = false;
+var _loadingGanjoorProgress = { total: 0, loaded: 0 };
 function ensureAllGanjoorPoetsLoaded() {
-  if (_allGanjoorLoadingStarted || typeof GANJOOR_INDEX === 'undefined') return Promise.resolve();
+  if (typeof GANJOOR_INDEX === 'undefined') return Promise.resolve();
   const files = GANJOOR_INDEX.filter((p) => p.lazy && !_loadedScripts.has(p.file)).map((p) => p.file);
   if (!files.length) return Promise.resolve();
-  _allGanjoorLoadingStarted = true;
-  return Promise.all(files.map((f) => loadScript(f))).then(() => {
-    try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
-    buildGanjoorList();
-    if (state.mode === 'ganjoor') { renderPlaylist(); renderDrawer(); }
-  }).catch(() => {});
+  _loadingGanjoorProgress.total = files.length;
+  _loadingGanjoorProgress.loaded = 0;
+  var BATCH = 4;
+  var chain = Promise.resolve();
+  function loadBatch(batch) {
+    return Promise.all(batch.map(function(f) {
+      return loadScript(f).then(function() {
+        _loadingGanjoorProgress.loaded++;
+        try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
+        buildGanjoorList();
+        if (state.mode === 'ganjoor') { renderPlaylist(); renderDrawer(); }
+      }).catch(function() { _loadingGanjoorProgress.loaded++; });
+    }));
+  }
+  for (var i = 0; i < files.length; i += BATCH) {
+    (function(b) { chain = chain.then(function() { return loadBatch(b); }); })(files.slice(i, i + BATCH));
+  }
+  return chain;
 }
 
 function renderPlaylist() {
@@ -647,6 +664,19 @@ function renderPlaylist() {
   _justOpenedPoetKey = null;
 }
 
+function buildTrackTooltip(item) {
+  var parts = [];
+  if (item.title) parts.push('عنوان: ' + item.title);
+  switch (state.mode) {
+    case 'golha': parts.push('برنامه: ' + (item.subtitle || '')); parts.push('خواننده: ' + (item.performer || '')); break;
+    case 'ganjoor': parts.push('شاعر: ' + (item.poet || '')); parts.push('بخش: ' + (item.formLabel || '')); if (item.chapterLabel) parts.push('فصل: ' + item.chapterLabel); parts.push('خوانش: ' + (item.reciter || '')); break;
+    case 'hekayat': parts.push('مجموعه: ' + (item.collection || '')); if (item.subCollection) parts.push('زیرمجموعه: ' + item.subCollection); break;
+    case 'meditation': parts.push('دسته: ' + (item.category || '')); if (item.subCollection) parts.push('زیرمجموعه: ' + item.subCollection); break;
+  }
+  parts.push('حالت: ' + MODE_NAMES[state.mode]);
+  return parts.join(' | ');
+}
+
 function appendTrackRow(parent, item, i) {
   const row = document.createElement("div");
   row.className = "track-row";
@@ -671,8 +701,15 @@ function appendTrackRow(parent, item, i) {
     <span class="name">${tdisplay}</span>
     ${tag}
     <span class="eq"><span></span><span></span><span></span></span>
+    <button class="pl-add-btn" title="اضافه به فهرست پخش" aria-label="اضافه به فهرست پخش">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
   `;
-  row.addEventListener("click", () => {
+  row.addEventListener("click", (e) => {
+    if (e.target.closest('.pl-add-btn')) {
+      addToPlaylist(item);
+      return;
+    }
     state.playingMode = state.mode;
     state.randomStartDone = true;
     _searchQuery = '';
@@ -680,6 +717,8 @@ function appendTrackRow(parent, item, i) {
     if (si) si.value = '';
     playIndex(item.globalIndex);
   });
+  // hover tooltip
+  row.title = buildTrackTooltip(item);
   parent.appendChild(row);
 }
 
@@ -830,6 +869,271 @@ function filterListBySearch(list, query) {
   });
 }
 /* ===================================================================
+   فهرست پخش (Playlist Queue)
+   =================================================================== */
+function addToPlaylist(item) {
+  var entry = { src: item.src, url: item.url, title: item.title, mode: item.mode, performer: item.performer, poet: item.poet, author: item.author, category: item.category, collection: item.collection, subtitle: item.subtitle, reciter: item.reciter, formLabel: item.formLabel, categoryId: item.categoryId, collectionId: item.collectionId, subCollection: item.subCollection, duration: item.duration, info: item.info, text: item.text, fullTitle: item.fullTitle, chapterLabel: item.chapterLabel, synthType: item.synthType };
+  state.playlist.push(entry);
+  renderPlaylistQueue();
+  showToast('به فهرست پخش اضافه شد: ' + item.title);
+}
+
+function removeFromPlaylist(index) {
+  state.playlist.splice(index, 1);
+  renderPlaylistQueue();
+}
+
+function movePlaylistItem(fromIdx, toIdx) {
+  if (fromIdx < 0 || toIdx < 0 || fromIdx >= state.playlist.length || toIdx >= state.playlist.length) return;
+  var item = state.playlist.splice(fromIdx, 1)[0];
+  state.playlist.splice(toIdx, 0, item);
+  renderPlaylistQueue();
+}
+
+var _playlistQueuePlaying = false;
+
+function playFromPlaylist(index) {
+  if (index < 0 || index >= state.playlist.length) return;
+  state.playingMode = state.playlist[index].mode;
+  var targetMode = state.playlist[index].mode;
+  var targetList = listForMode(targetMode);
+  var src = state.playlist[index].src;
+  var gi = targetList.findIndex(function(it) { return it.src === src; });
+  if (gi >= 0) {
+    if (state.mode !== targetMode) {
+      state.mode = targetMode;
+      updateModeUI();
+      renderPlaylist();
+    }
+    _playlistQueuePlaying = true;
+    state.randomStartDone = true;
+    playIndex(gi);
+  } else {
+    var item = state.playlist[index];
+    if (item.synthType) {
+      playSynthNoise(item.synthType);
+      document.getElementById('npTitle').textContent = item.title;
+      document.getElementById('npSub').textContent = item.category || 'مدیتیشن';
+      document.getElementById('npArtist').textContent = item.title;
+      if (document.getElementById('miniTitle')) document.getElementById('miniTitle').textContent = item.title;
+      state.playing = true;
+      updateTransportUI();
+    } else {
+      stopSynthNoise();
+      audio.src = item.src;
+      audio.play().then(function() {
+        state.playing = true;
+        updateTransportUI();
+      }).catch(function() {
+        state.playing = false;
+        updateTransportUI();
+      });
+      document.getElementById('npTitle').textContent = item.title;
+      document.getElementById('npSub').textContent = item.subtitle || item.category || item.collection || '';
+      document.getElementById('npArtist').textContent = item.performer || item.poet || item.author || '';
+      if (document.getElementById('miniTitle')) document.getElementById('miniTitle').textContent = item.title;
+    }
+    state.playingMode = item.mode;
+    updateMediaSessionMetadata(item);
+    state.currentIndex = -1;
+    refreshActiveRow();
+    renderDrawer();
+    updateTransportUI();
+  }
+  renderPlaylistQueue();
+}
+
+function renderPlaylistQueue() {
+  var container = document.getElementById('playlistItems');
+  if (!container) return;
+  var countEl = document.getElementById('playlistCount');
+  if (countEl) countEl.textContent = toFa(state.playlist.length);
+  if (!state.playlist.length) {
+    container.innerHTML = '<div class="playlist-empty">هنوز هیچ فایلی اضافه نشده</div>';
+    return;
+  }
+  container.innerHTML = '';
+  state.playlist.forEach(function(item, i) {
+    var row = document.createElement('div');
+    row.className = 'playlist-item';
+    row.draggable = true;
+    row.dataset.index = i;
+
+    var label = '';
+    if (item.mode === 'golha') label = 'گل‌ها';
+    else if (item.mode === 'ganjoor') label = 'شعرخوان';
+    else if (item.mode === 'hekayat') label = 'نثرخوان';
+    else if (item.mode === 'meditation') label = 'مدیتیشن';
+
+    var subInfo = item.subtitle || item.collection || item.category || item.poet || '';
+
+    // هایلایت آیتم در حال پخش
+    if (state.currentIndex >= 0) {
+      var currentTrack = playbackList()[state.currentIndex];
+      if (currentTrack && currentTrack.src === item.src) row.classList.add('active');
+    }
+
+    row.innerHTML = '<div class="pl-item-drag">≡</div><div class="pl-item-info"><span class="pl-item-title">' + item.title + '</span><span class="pl-item-sub">' + label + ' — ' + subInfo + '</span></div><button class="pl-item-remove" data-plidx="' + i + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>';
+
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.pl-item-remove')) return;
+      state.playlistEnabled = true;
+      togglePlaylistOnOff(true);
+      _playlistQueuePlaying = true;
+      playFromPlaylist(parseInt(this.dataset.index, 10));
+    });
+
+    var rmv = row.querySelector('.pl-item-remove');
+    rmv.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var idx = parseInt(this.dataset.plidx, 10);
+      removeFromPlaylist(idx);
+    });
+
+    row.addEventListener('dragstart', function(e) {
+      e.dataTransfer.setData('text/plain', this.dataset.index);
+      this.classList.add('pl-dragging');
+    });
+    row.addEventListener('dragend', function(e) {
+      this.classList.remove('pl-dragging');
+      document.querySelectorAll('.pl-drag-over').forEach(function(el) { el.classList.remove('pl-drag-over'); });
+    });
+    row.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      document.querySelectorAll('.pl-drag-over').forEach(function(el) { el.classList.remove('pl-drag-over'); });
+      this.classList.add('pl-drag-over');
+    });
+    row.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('pl-drag-over');
+      var fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      var toIdx = parseInt(this.dataset.index, 10);
+      if (!isNaN(fromIdx) && !isNaN(toIdx) && fromIdx !== toIdx) {
+        movePlaylistItem(fromIdx, toIdx);
+      }
+    });
+
+    var fullInfo = item.title;
+    var pathParts = [];
+    if (subInfo) pathParts.push(subInfo);
+    if (label) pathParts.push(label);
+    if (pathParts.length) fullInfo += '\n' + pathParts.join(' › ');
+    if (item.performer && item.performer !== subInfo) fullInfo += '\nخواننده: ' + item.performer;
+    if (item.duration) fullInfo += '\nمدت: ' + item.duration;
+    row.title = fullInfo;
+
+    container.appendChild(row);
+  });
+  updatePlaylistOnOffUI();
+  updatePlaylistRepeatUI();
+  updatePlaylistShuffleUI();
+}
+
+function togglePlaylistOnOff(forceOn) {
+  if (forceOn === true) state.playlistEnabled = true;
+  else if (forceOn === false) state.playlistEnabled = false;
+  else state.playlistEnabled = !state.playlistEnabled;
+  updatePlaylistOnOffUI();
+  var sb = document.getElementById('shuffleBtn');
+  var rb = document.getElementById('repeatBtn');
+  var q = document.getElementById('playlistQueue');
+  if (state.playlistEnabled) {
+    if (sb) sb.classList.add('pl-disabled');
+    if (rb) rb.classList.add('pl-disabled');
+    if (q) q.classList.add('pl-enabled');
+  } else {
+    if (sb) sb.classList.remove('pl-disabled');
+    if (rb) rb.classList.remove('pl-disabled');
+    if (q) q.classList.remove('pl-enabled');
+  }
+}
+
+function updatePlaylistOnOffUI() {
+  var btn = document.getElementById('playlistOnOffBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', !!state.playlistEnabled);
+  var q = document.getElementById('playlistQueue');
+  if (q) q.classList.toggle('pl-on', !!state.playlistEnabled);
+}
+
+function cyclePlaylistRepeat() {
+  var modes = ['off', 'all', 'one'];
+  var curIdx = modes.indexOf(state.playlistRepeat);
+  state.playlistRepeat = modes[(curIdx + 1) % modes.length];
+  updatePlaylistRepeatUI();
+}
+
+function cyclePlaylistShuffle() {
+  state.playlistShuffle = !state.playlistShuffle;
+  updatePlaylistShuffleUI();
+}
+
+function updatePlaylistShuffleUI() {
+  var btn = document.getElementById('playlistShuffleBtn');
+  if (!btn) return;
+  btn.classList.toggle('active', !!state.playlistShuffle);
+  btn.title = state.playlistShuffle ? 'شافل: روشن' : 'شافل: خاموش';
+}
+
+function updatePlaylistRepeatUI() {
+  var btn = document.getElementById('playlistRepeatBtn');
+  if (!btn) return;
+  var titles = { off: 'تکرار: خاموش', all: 'تکرار: کل فهرست پخش', one: 'تکرار: همین فایل' };
+  btn.title = titles[state.playlistRepeat] || titles.off;
+  btn.classList.toggle('active', state.playlistRepeat !== 'off');
+  var badge = state.playlistRepeat === 'one' ? '۱' : '';
+  var existing = btn.querySelector('.pl-repeat-badge');
+  if (badge) {
+    if (!existing) { var el = document.createElement('span'); el.className = 'pl-repeat-badge'; btn.appendChild(el); existing = el; }
+    existing.textContent = badge;
+  } else if (existing) existing.remove();
+}
+
+function playlistAdvance(direction) {
+  if (!state.playlistEnabled || !state.playlist.length) return;
+  if (state.playlistRepeat === 'one' && state.currentIndex !== -1 && direction === 'next') {
+    playIndex(state.currentIndex);
+    return;
+  }
+  var currentItem = playbackList()[state.currentIndex];
+  var src = currentItem ? currentItem.src : '';
+  var currentPlIdx = -1;
+  state.playlist.forEach(function(pl, idx) { if (pl.src === src) currentPlIdx = idx; });
+
+  // شافل: پخش تصادفی
+  if (state.playlistShuffle && state.playlist.length > 1) {
+    var avail = [];
+    for (var i = 0; i < state.playlist.length; i++) {
+      if (i !== currentPlIdx) avail.push(i);
+    }
+    if (avail.length) {
+      playFromPlaylist(avail[Math.floor(Math.random() * avail.length)]);
+    }
+    return;
+  }
+
+  if (currentPlIdx < 0) {
+    if (state.playlist.length) { playFromPlaylist(0); }
+    return;
+  }
+  var nextIdx;
+  if (direction === 'next') {
+    nextIdx = currentPlIdx + 1;
+    if (nextIdx >= state.playlist.length) {
+      if (state.playlistRepeat === 'all') nextIdx = 0;
+      else { stopPlaybackAtEnd(); return; }
+    }
+  } else {
+    nextIdx = currentPlIdx - 1;
+    if (nextIdx < 0) {
+      if (state.playlistRepeat === 'all') nextIdx = state.playlist.length - 1;
+      else return;
+    }
+  }
+  playFromPlaylist(nextIdx);
+}
+
+/* ===================================================================
    پخش
    =================================================================== */
 function playIndex(i) {
@@ -972,8 +1276,25 @@ function ensureAllModesLoaded() {
 
 function allModesFlatIndex() {
   const out = [];
-  MODE_ORDER.forEach((m) => {
-    listForMode(m).forEach((item, idx) => out.push({ mode: m, idx }));
+  MODE_ORDER.forEach(function(m) {
+    if (m === 'ganjoor') {
+      state.ganjoorList.forEach(function(item, idx) { out.push({ mode: 'ganjoor', idx: idx }); });
+      // شاعران لودنشدهٔ گنجور: یک جایگزین مجازی
+      if (typeof GANJOOR_INDEX !== 'undefined') {
+        GANJOOR_INDEX.forEach(function(poet) {
+          if (!poet.lazy) return;
+          if (_loadedScripts.has(poet.file)) return;
+          out.push({ mode: 'ganjoor', idx: -1, lazyPoet: poet });
+        });
+      }
+    } else {
+      if (_modeLoaded[m]) {
+        listForMode(m).forEach(function(item, idx) { out.push({ mode: m, idx: idx }); });
+      } else {
+        // حالت لود نشده (هکایت یا مدیتیشن): یه placeholder تا شافل همه حالات رو ببینه
+        out.push({ mode: m, idx: -1, lazyMode: true });
+      }
+    }
   });
   return out;
 }
@@ -981,15 +1302,60 @@ function allModesFlatIndex() {
 function playAcrossModes(excludeMode, excludeIdx) {
   const all = allModesFlatIndex();
   if (!all.length) return;
-  let pick;
-  if (all.length === 1) {
-    pick = all[0];
-  } else {
-    do {
-      pick = all[Math.floor(Math.random() * all.length)];
-    } while (pick.mode === excludeMode && pick.idx === excludeIdx);
+  function randomPick() {
+    let pick;
+    if (all.length === 1) {
+      pick = all[0];
+    } else {
+      do {
+        pick = all[Math.floor(Math.random() * all.length)];
+      } while (pick.mode === excludeMode && pick.idx === excludeIdx);
+    }
+    return pick;
   }
-  ensureModeLoaded(pick.mode).then(() => {
+  var pick = randomPick();
+  if (!pick) return;
+
+  // حالت لودنشده (هکایت/مدیتیشن): لود کن، بعد یک آیتم تصادفی انتخاب کن
+  if (pick.lazyMode) {
+    ensureModeLoaded(pick.mode).then(function() {
+      // حالا شافل رو دوباره صدا بزن — این بار حالت لود شده هست
+      playAcrossModes(excludeMode, excludeIdx);
+    });
+    return;
+  }
+
+  // شاعر لودنشده: لود کن، بعد یک شعر تصادفی ازش پخش کن
+  if (pick.lazyPoet) {
+    loadScript(pick.lazyPoet.file).then(function() {
+      try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
+      buildGanjoorList();
+      if (state.mode === 'ganjoor') { renderPlaylist(); renderDrawer(); }
+      // یک شعر تصادفی از این شاعر پیدا کن
+      var poetName = pick.lazyPoet.poetName;
+      var candidates = [];
+      state.ganjoorList.forEach(function(it, idx) { if (it.poet === poetName) candidates.push(idx); });
+      if (candidates.length) {
+        var pickIdx = candidates[Math.floor(Math.random() * candidates.length)];
+        if (state.mode !== 'ganjoor') {
+          state.mode = 'ganjoor';
+          state.randomStartDone = true;
+          updateModeUI();
+          renderPlaylist();
+        }
+        state.playingMode = 'ganjoor';
+        playIndex(pickIdx);
+      } else {
+        // اگر شعری پیدا نشد دوباره امتحان کن
+        playAcrossModes(excludeMode, excludeIdx);
+      }
+    }).catch(function() {
+      playAcrossModes(excludeMode, excludeIdx);
+    });
+    return;
+  }
+
+  ensureModeLoaded(pick.mode).then(function() {
     if (state.mode !== pick.mode) {
       state.mode = pick.mode;
       state.randomStartDone = true;
@@ -1018,6 +1384,10 @@ function pickRandomExcluding(indices, exclude) {
 }
 
 function nextTrack() {
+  if (state.playlistEnabled && state.playlist.length) {
+    playlistAdvance('next');
+    return;
+  }
   const list = playbackList();
   if (!list.length) return;
 
@@ -1078,6 +1448,10 @@ function nextTrack() {
 }
 
 function prevTrack() {
+  if (state.playlistEnabled && state.playlist.length) {
+    playlistAdvance('prev');
+    return;
+  }
   const list = playbackList();
   if (!list.length) return;
 
@@ -1343,6 +1717,14 @@ audio.addEventListener("timeupdate", () => {
   }
 });
 audio.addEventListener("ended", () => {
+  if (state.playlistEnabled && state.playlist.length) {
+    if (state.playlistRepeat === 'one' && state.currentIndex !== -1) {
+      playIndex(state.currentIndex);
+      return;
+    }
+    playlistAdvance('next');
+    return;
+  }
   if (state.repeatMode === 'one' && state.currentIndex !== -1) {
     playIndex(state.currentIndex);
     return;
@@ -1463,21 +1845,32 @@ function tryDeepLinkPlay() {
   const src = params.get('src');
   if (!mode || !src) return false;
   ensureModeLoaded(mode).then(function() {
-    // برای گنجور، شعر لینک‌شده ممکن است مال یکی از شاعرانی باشد که هنوز
-    // بارگذاری نشده — پس قبل از جستجو مطمئن می‌شویم همه بارگذاری شده‌اند
-    const afterLazy = mode === 'ganjoor' ? loadLazyGanjoorPoets() : Promise.resolve();
-    afterLazy.then(function() {
-      const list = listForMode(mode);
-      const idx = list.findIndex(function(it) { return it.src === src || it.url === src; });
-      if (idx === -1) return;
-      state.mode = mode;
-      state.playingMode = mode;
-      state.randomStartDone = true;
-      updateModeUI();
-      renderPlaylist();
-      playIndex(idx);
-      audio.play().catch(function() {});
-    });
+    const list = listForMode(mode);
+    var idx = list.findIndex(function(it) { return it.src === src || it.url === src; });
+    // در گنجور، شعر ممکن است مال شاعری باشد که لود نشده — بارگذاری کامل
+    if (idx === -1 && mode === 'ganjoor') {
+      ensureAllGanjoorPoetsLoaded().then(function() {
+        const list2 = listForMode(mode);
+        var idx2 = list2.findIndex(function(it) { return it.src === src || it.url === src; });
+        if (idx2 === -1) return;
+        state.mode = mode;
+        state.playingMode = mode;
+        state.randomStartDone = true;
+        updateModeUI();
+        renderPlaylist();
+        playIndex(idx2);
+        audio.play().catch(function() {});
+      });
+      return;
+    }
+    if (idx === -1) return;
+    state.mode = mode;
+    state.playingMode = mode;
+    state.randomStartDone = true;
+    updateModeUI();
+    renderPlaylist();
+    playIndex(idx);
+    audio.play().catch(function() {});
   });
   return true;
 }
@@ -1534,20 +1927,23 @@ const MODE_SCRIPTS = {
     // aggregator + extra
     'ganjoor-data.js', 'amirkhadem-data.js'
   ],
-  hekayat: ['hekayat-data.js', 'redcircle-data.js', 'hezar-data.js', 'golestan-data.js', 'ghesegoo-data.js', 'castbox-data.js'],
-  meditation: ['khabcast-data.js', 'meditation-data.js', 'mindful-data.js', 'castbox-data.js']
+  hekayat: ['hekayat-data.js', 'redcircle-data.js', 'hezar-data.js', 'golestan-data.js', 'ghesegoo-data.js', 'castbox-hekayat-data.js'],
+  meditation: ['khabcast-data.js', 'meditation-data.js', 'mindful-data.js', 'castbox-meditation-data.js']
 };
 
 const _loadedScripts = new Set();
+const _loadingScripts = {};
 function loadScript(src) {
   if (_loadedScripts.has(src)) return Promise.resolve();
-  return new Promise((resolve, reject) => {
+  if (_loadingScripts[src]) return _loadingScripts[src];
+  _loadingScripts[src] = new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = src;
-    s.onload = () => { _loadedScripts.add(src); resolve(); };
-    s.onerror = () => reject(new Error('خطا در بارگذاری ' + src));
+    s.onload = () => { _loadedScripts.add(src); delete _loadingScripts[src]; resolve(); };
+    s.onerror = () => { delete _loadingScripts[src]; reject(new Error('خطا در بارگذاری ' + src)); };
     document.body.appendChild(s);
   });
+  return _loadingScripts[src];
 }
 
 function loadModeScripts(mode) {
@@ -1563,30 +1959,7 @@ function loadModeScripts(mode) {
 
 // Lazy-load remaining large ganjoor poet files in background
 // Called after initial UI render so user sees something immediately
-var _lazyLoading = false;
-var _lazyLoadingPromise = null;
-function loadLazyGanjoorPoets() {
-  if (_lazyLoadingPromise) return _lazyLoadingPromise;
-  if (typeof GANJOOR_INDEX === 'undefined') return Promise.resolve();
-  _lazyLoading = true;
-  var chain = Promise.resolve();
-  GANJOOR_INDEX.forEach(function(poet) {
-    if (!poet.lazy) return;
-    chain = chain.then(function() {
-      return loadScript(poet.file).then(function() {
-        // Rebuild GANJOOR_POEMS + app state
-        try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch(e) {}
-        buildGanjoorList();
-        renderPlaylist();
-        renderDrawer();
-      }).catch(function() {});
-    });
-  });
-  _lazyLoadingPromise = chain.then(function() {
-    _lazyLoading = false;
-  });
-  return _lazyLoadingPromise;
-}
+
 
 function buildGolhaList() {
   state.golhaList = [
@@ -1671,13 +2044,8 @@ function ensureModeLoaded(mode) {
   const p = loadModeScripts(mode).then(() => {
     buildListForMode(mode);
     _modeLoaded[mode] = true;
-    // توجه: بارگذاری کامل شاعران سنگین گنجور (loadLazyGanjoorPoets) اینجا
-    // دیگر خودکار صدا زده نمی‌شود — چون این تابع هر بار «حالت را آماده کن»
-    // (مثلاً پیش‌گرمی پس‌زمینه برای شافل کل حالت‌ها) صدا زده می‌شد،
-    // ده‌ها مگابایت شعر (دیوان شمس ۷.۵ مگ، سعدی ۴.۷ مگ، عطار، صائب، ...)
-    // را برای هر بازدیدکننده‌ای — حتی کسی که هیچ‌وقت وارد گنجور نمی‌شود —
-    // دانلود می‌کرد. حالا فقط وقتی کاربر واقعاً وارد حالت گنجور می‌شود
-    // (در switchToMode) بارگذاری می‌شود.
+    // شاعران سنگین گنجور lazy می‌مانند — فقط با کلیک کاربر روی شاعر یا در
+    // شافل کل حالات که به شاعری می‌رسد بارگذاری می‌شوند (یک‌یکی، بر اساس تقاضا)
   }).catch((err) => {
     console.error(err);
   }).finally(() => {
@@ -1691,22 +2059,9 @@ function init() {
   loadSavedSettings();
   wireUI();
 
-  // پیش‌فرض شافل «کل فهرست‌های کل حالات» است، پس از همان ابتدا هر چهار
-  // حالت را (در پس‌زمینه، بدون قفل کردن رابط کاربری) آماده می‌کنیم
-  if (state.shuffleMode === 'allModes') { ensureAllModesLoaded(); }
-
-  // تصمیم دربارهٔ لود تنبل گنجور: چون پیش‌فرض برنامه «شافل کل حالات» است،
-  // نگه‌داشتن گنجور کاملاً خالی تا کلیک کاربر باعث می‌شد شافل اولیه اصلاً
-  // شعری پخش نکند. برای رفع این تناقض: صفحه اول سبک/سریع بالا می‌آید
-  // (فقط شاعران سبک گنجور — index.js + ۷ شاعر کوچک)، و همان لحظه —
-  // بدون قفل کردن چیزی، در idle time — بارگذاری کامل بقیهٔ شاعران در
-  // پس‌زمینه شروع می‌شود؛ در عمل طی چند ثانیهٔ اول آماده می‌شود، یعنی هم
-  // صفحه سبک باز می‌شود هم شافل به‌زودی به کل گنجور دسترسی دارد. کلیک
-  // روی هر شاعر هم همچنان همان شاعر را فوری در اولویت لود می‌کند.
-  ensureModeLoaded('ganjoor').then(function() {
-    const scheduleIdle = window.requestIdleCallback || function(fn) { return setTimeout(fn, 1200); };
-    scheduleIdle(function() { ensureAllGanjoorPoetsLoaded(); }, { timeout: 6000 });
-  });
+  // پیش‌فرض شافل «کل فهرست‌های کل حالات» — فقط index.js و ۷ شاعر سبک لود می‌شن
+  // بقیه شاعران گنجور lazy می‌مانند تا شافل بهشون برسه (یک‌یکی در پس‌زمینه)
+  ensureModeLoaded('ganjoor');
 
   state.golhaList = [];
   state.ganjoorList = [];
@@ -1767,6 +2122,14 @@ function wireUI() {
   document.getElementById("drawerToggle").addEventListener("click", () => {
     state.drawerOpen = !state.drawerOpen;
     document.getElementById("drawer").classList.toggle("open", state.drawerOpen);
+    if (state.drawerOpen) {
+      // فقط در موبایل (عرض ≤720px) باکس هواشناسی بسته شود
+      if (window.innerWidth <= 720) {
+        document.getElementById('weatherWidget').classList.add('collapsed');
+      }
+      document.getElementById('playlistQueue').classList.remove('pl-on','pl-enabled');
+      if (state.playlistEnabled) { state.playlistEnabled = false; togglePlaylistOnOff(false); }
+    }
   });
 
   document.getElementById("modeToggleBtn").addEventListener("click", cycleMode);
@@ -1855,12 +2218,41 @@ function wireUI() {
     });
   });
 
+  // فهرست پخش
+  var plCollapse = document.getElementById('playlistCollapseBtn');
+  if (plCollapse) {
+    plCollapse.addEventListener('click', function(e) {
+      e.stopPropagation();
+      document.getElementById('playlistQueue').classList.toggle('pl-collapsed');
+    });
+  }
+  var plOnOff = document.getElementById('playlistOnOffBtn');
+  if (plOnOff) plOnOff.addEventListener('click', function(e) {
+    e.stopPropagation();
+    togglePlaylistOnOff();
+    document.getElementById('playlistQueue').classList.remove('pl-collapsed');
+  });
+  var plShuffle = document.getElementById('playlistShuffleBtn');
+  if (plShuffle) plShuffle.addEventListener('click', function() { cyclePlaylistShuffle(); });
+  var plRepeat = document.getElementById('playlistRepeatBtn');
+  if (plRepeat) plRepeat.addEventListener('click', function() { cyclePlaylistRepeat(); });
+  var plClear = document.getElementById('playlistClearBtn');
+  if (plClear) plClear.addEventListener('click', function() {
+    if (state.playlist.length) {
+      state.playlist = [];
+      renderPlaylistQueue();
+      showToast('فهرست پخش پاک شد');
+    }
+  });
+  renderPlaylistQueue();
+
   document.getElementById('shuffleBtn').addEventListener('click', () => {
     const curIdx = SHUFFLE_CYCLE.indexOf(state.shuffleMode);
     state.shuffleMode = SHUFFLE_CYCLE[(curIdx + 1) % SHUFFLE_CYCLE.length];
     resolveShuffleRepeatConflict('shuffle');
-    if (state.shuffleMode === 'allModes') { ensureAllModesLoaded(); ensureAllGanjoorPoetsLoaded(); }
-    if (state.shuffleMode === 'modeList' && state.mode === 'ganjoor') { ensureAllGanjoorPoetsLoaded(); }
+    if (state.shuffleMode === 'allModes') { ensureAllModesLoaded(); }
+    // شافل کل حالات و modeList: دیگه ensureAllGanjoorPoetsLoaded رو صدا نمی‌زنیم
+    // چون playAcrossModes خودش لود lazy روی تقاضا رو انجام می‌ده
     updateShuffleUI();
     updateRepeatUI();
   });

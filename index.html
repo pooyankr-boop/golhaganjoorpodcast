@@ -125,6 +125,35 @@
       <button id="jumpToPlayingBtn" class="jump-to-playing-btn" title="رفتن به فایل در حال پخش در فهرست" aria-label="رفتن به فایل در حال پخش در فهرست">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v13"/><path d="M18 12l-6 6-6-6"/></svg>
       </button>
+
+      <!-- فهرست پخش — داخل بدنه پلیر -->
+      <div class="playlist-queue" id="playlistQueue">
+        <div class="playlist-queue-header" id="playlistQueueHeader">
+          <span class="playlist-queue-title">فهرست پخش</span>
+          <span class="playlist-queue-count" id="playlistCount">۰</span>
+          <button id="playlistCollapseBtn" class="playlist-collapse-btn" title="جمع کردن/باز کردن فهرست پخش" aria-label="جمع کردن/باز کردن فهرست پخش">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+          </button>
+          <button id="playlistOnOffBtn" class="playlist-onoff" title="روشن/خاموش فهرست پخش" aria-label="روشن/خاموش فهرست پخش">
+          </button>
+        </div>
+        <div class="playlist-queue-body" id="playlistQueueBody">
+          <div class="playlist-items" id="playlistItems">
+            <div class="playlist-empty">هنوز هیچ فایلی اضافه نشده</div>
+          </div>
+          <div class="playlist-controls-bar">
+            <button id="playlistShuffleBtn" class="playlist-ctrl-btn" title="شافل فهرست پخش" aria-label="شافل فهرست پخش">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20L21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg>
+            </button>
+            <button id="playlistRepeatBtn" class="playlist-ctrl-btn" title="تکرار: خاموش" aria-label="تکرار فهرست پخش">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+            </button>
+            <button id="playlistClearBtn" class="playlist-ctrl-btn" title="پاک کردن کل فهرست پخش" aria-label="پاک کردن کل فهرست پخش">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
     </section>
 
     <aside class="drawer" id="drawer">

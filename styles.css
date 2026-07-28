@@ -390,7 +390,7 @@ body.mode-meditation .gramophone-card::before {
   position: fixed;
   top: 150px;
   left: 10px;
-  width: 130px;
+  width: 173px;
   z-index: 35;
   display: flex;
   flex-direction: column;
@@ -414,9 +414,9 @@ body.mode-meditation .gramophone-card::before {
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-  background: var(--skin-glass, rgba(255,255,255,.10));
-  backdrop-filter: blur(14px) saturate(1.2);
-  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  background: var(--skin-glass, rgba(255,255,255,.07));
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 6px 6px;
@@ -470,6 +470,8 @@ body.mode-meditation .gramophone-card::before {
 .w-time { display: none; }
 .w-temp { font-size: 9px; font-weight: 500; }
 .w-humidity { font-size: 7px; color: var(--ink-soft); opacity: .7; }
+.w-wind { font-size: 7px; color: var(--ink-soft); opacity: .7; margin-inline-start: 2px; }
+.w-aqi { font-size: 7px; font-weight: 500; margin-inline-start: 2px; }
 
 .weather-next-btn {
   align-self: center;
@@ -531,6 +533,8 @@ body.mode-meditation .gramophone-card::before {
   .w-city { font-size: 7px; }
   .w-icon { font-size: 12px; }
   .w-humidity { font-size: 6.5px; }
+  .w-wind { font-size: 6.5px; }
+  .w-aqi { font-size: 6.5px; }
   .w-temp { font-size: 8px; }
   /* موبایل: ابتدا بسته */
   .weather-widget { }
@@ -807,6 +811,241 @@ body.mode-meditation .disc {
   white-space: nowrap;
   pointer-events: none;
 }
+/* ========== فهرست پخش (Playlist Queue) — داخل بدنه پلیر ========== */
+.playlist-queue {
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  overflow: hidden;
+  transition: all var(--transition);
+}
+.playlist-queue-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.playlist-queue-title {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 600;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.playlist-queue-count {
+  font-size: 10px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 7px;
+  min-width: 20px;
+  text-align: center;
+}
+/* تاگل خاموش/روشن */
+.playlist-onoff {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+  flex: 0 0 auto;
+  position: relative;
+}
+.playlist-onoff::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+  transition: all var(--transition);
+}
+.playlist-onoff.active::after {
+  background: var(--skin-accent, var(--accent));
+  box-shadow: 0 0 0 3px var(--skin-accent, var(--accent));
+  opacity: .6;
+}
+.playlist-onoff svg { display: none; }
+
+/* دکمه کشویی جمع‌کننده */
+.playlist-collapse-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  transition: color var(--transition);
+}
+.playlist-collapse-btn:hover { color: var(--ink); }
+.playlist-collapse-btn svg { width: 14px; height: 14px; transition: transform var(--transition); }
+.playlist-queue.pl-collapsed .playlist-collapse-btn svg { transform: rotate(180deg); }
+
+.playlist-queue-body {
+  max-height: 300px;
+  overflow: hidden;
+  transition: max-height var(--transition);
+}
+.playlist-queue.pl-collapsed .playlist-queue-body { max-height: 0 !important; }
+.playlist-items {
+  padding: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.playlist-items .playlist-empty {
+  padding: 16px 4px;
+  text-align: center;
+  color: var(--ink-soft);
+  font-size: 11px;
+}
+.playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--transition);
+  margin-bottom: 2px;
+}
+.playlist-item:last-child { margin-bottom: 0; }
+.playlist-item:hover { background: var(--surface-2); }
+.playlist-item.pl-dragging { opacity: .4; }
+.playlist-item.pl-drag-over { border-top: 2px solid var(--skin-accent, var(--accent)); }
+.playlist-item.active {
+  background: var(--surface);
+  color: var(--accent);
+  border-right: 3px solid var(--accent);
+}
+.pl-item-drag {
+  cursor: grab;
+  color: var(--ink-soft);
+  font-size: 12px;
+  flex: 0 0 16px;
+  text-align: center;
+  user-select: none;
+}
+.pl-item-info {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.pl-item-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pl-item-sub {
+  display: block;
+  font-size: 9px;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pl-item-remove {
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  transition: color var(--transition), background var(--transition);
+}
+.pl-item-remove:hover { color: var(--accent); background: rgba(255,0,0,.1); }
+.pl-item-remove svg { width: 12px; height: 12px; }
+.playlist-controls-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 8px 7px;
+  border-top: 1px solid var(--border);
+}
+.playlist-ctrl-btn {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition);
+}
+.playlist-ctrl-btn svg { width: 14px; height: 14px; }
+.playlist-ctrl-btn.active { color: var(--skin-accent, var(--accent)); border-color: var(--skin-accent, var(--accent)); }
+.playlist-ctrl-btn:hover { background: var(--surface); }
+.pl-repeat-badge {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--skin-accent, var(--accent));
+}
+
+.pl-add-btn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  transition: color var(--transition), background var(--transition);
+  opacity: 0.5;
+}
+.track-row:hover .pl-add-btn { opacity: 1; }
+.pl-add-btn:hover { color: var(--skin-accent, var(--accent)); background: var(--surface-2); }
+.pl-add-btn svg { width: 12px; height: 12px; }
+.ctrl-toggle.pl-disabled { opacity: .35; pointer-events: none; }
+.playlist-queue.pl-on.pl-collapsed .playlist-queue-body { max-height: 0 !important; }
+
+/* ریسپانسیو موبایل */
+@media (max-width: 720px) {
+  .playlist-queue-body { max-height: 200px; }
+  .playlist-items { max-height: 120px; }
+}
+@media (max-width: 480px) {
+  .playlist-queue-body { max-height: 160px; }
+  .playlist-items { max-height: 90px; }
+}
+
 .color-mode-row {
   display: flex;
   gap: 5px;
@@ -1453,6 +1692,9 @@ footer.credit {
      تا روی زمان نوار پخش (curTime/durTime) ننشیند */
   .jump-to-playing-btn { bottom: 8px; right: 10px; width: 26px; height: 26px; }
   .jump-to-playing-btn svg { width: 13px; height: 13px; }
+
+  /* در موبایل دکمه کشوی اطلاعات بالاتر بیاید تا با دکمه جمع کردن هواشناسی تداخل نداشته باشد */
+  .drawer-toggle { padding-top: 4px; margin-top: -14px; }
 }
 
 /* Tablet 481–768px */
