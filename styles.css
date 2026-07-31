@@ -3,7 +3,7 @@
    استایل اصلی — نسخهٔ کامل
    ===================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Lalezar&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=Noto+Nastaliq+Urdu:wght@400;600;700&family=Lalezar&family=Scheherazade+New:wght@400;500;600;700&display=swap');
 
 :root {
   --radius-lg: 28px;
@@ -15,6 +15,7 @@
   --font-ui: 'Vazirmatn', sans-serif;
   --font-heading: 'Noto Nastaliq Urdu', 'Vazirmatn', serif;
   --font-decorative: 'Lalezar', 'Vazirmatn', sans-serif;
+  --font-settings: 'Vazirmatn', sans-serif;
   --weight-ui: 400;
   --weight-heading: 400;
   --weight-decorative: 400;
@@ -158,7 +159,7 @@ html[data-theme="dark"] body::before { display: none; }
   transition: opacity 0.6s;
   pointer-events: none;
 }
-html[data-theme="sunrise"] #fullscreenVinyl,
+html[data-theme="sunrise"] #fullscreenVinyl { opacity: 0; }
 html[data-theme="sunset"] #fullscreenVinyl { opacity: 0.35; }
 
 .icon-btn {
@@ -213,6 +214,12 @@ html[data-theme="sunset"] #fullscreenVinyl { opacity: 0.35; }
   box-shadow: 0 0 0 3px rgba(255,255,255,.15), 0 0 20px rgba(0,0,0,.3);
   transition: border-color var(--transition), box-shadow var(--transition); border-color var(--transition);
 }
+/* حالت رادیو (گلها): هایلایت خاکستری تیره */
+body.mode-golha .mode-emblem {
+  border-color: #4a4a4a;
+  box-shadow: 0 0 0 3px rgba(74,74,74,.25), 0 0 20px rgba(0,0,0,.3);
+}
+
 html[data-theme="sunrise"] .mode-emblem,
 html[data-theme="sunset"] .mode-emblem {
   width: 110px;
@@ -269,8 +276,8 @@ html[data-theme="light"] .mode-emblem .icon-btn svg {
   border-color: var(--accent);
   transform: scale(1.25);
 }
-.mode-dot[data-mode="golha"].active { background: var(--gold); border-color: var(--gold); }
-body:not(.mode-golha) .mode-dot[data-mode="golha"]:hover { border-color: var(--gold); background: var(--gold); opacity: .5; }
+.mode-dot[data-mode="golha"].active { background: #4a4a4a; border-color: #4a4a4a; }
+body:not(.mode-golha) .mode-dot[data-mode="golha"]:hover { border-color: #4a4a4a; background: #4a4a4a; opacity: .5; }
 .mode-dot[data-mode="ganjoor"].active { background: var(--accent-2); border-color: var(--accent-2); }
 body:not(.mode-ganjoor) .mode-dot[data-mode="ganjoor"]:hover { border-color: var(--accent-2); background: var(--accent-2); opacity: .5; }
 .mode-dot[data-mode="hekayat"].active { background: var(--accent); border-color: var(--accent); }
@@ -388,14 +395,16 @@ body.mode-meditation .gramophone-card::before {
 /* ========== گجت هواشناسی — نسخه فشرده ========== */
 .weather-widget {
   position: fixed;
-  top: 150px;
-  left: 10px;
-  width: 173px;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: auto;
+  max-width: calc(100vw - 20px);
   z-index: 35;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
 }
 .weather-jalali {
   text-align: center;
@@ -405,13 +414,14 @@ body.mode-meditation .gramophone-card::before {
   color: var(--ink-soft);
   letter-spacing: .2px;
   background: var(--skin-glass, rgba(255,255,255,.06));
-  padding: 1px 4px;
+  padding: 2px 8px;
   border-radius: 999px;
   backdrop-filter: blur(6px);
+  white-space: nowrap;
 }
 .weather-panel {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: stretch;
   gap: 4px;
   background: var(--skin-glass, rgba(255,255,255,.07));
@@ -422,33 +432,35 @@ body.mode-meditation .gramophone-card::before {
   padding: 6px 6px;
   box-shadow: var(--shadow-soft);
   overflow: hidden;
-  transition: max-height var(--transition), opacity var(--transition), padding var(--transition);
-  max-height: 560px;
+  transition: max-width var(--transition), max-height var(--transition), opacity var(--transition), padding var(--transition);
+  max-width: 100vw;
 }
 .weather-widget.collapsed .weather-panel {
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
+  max-width: 0;
+  max-height: none;
+  padding: 0;
   opacity: 0;
   pointer-events: none;
   border-width: 0;
+  overflow: hidden;
 }
 .weather-rows {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
 }
 .weather-row {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 1px;
+  gap: 3px;
   font-family: var(--font-ui);
   font-weight: 300;
   text-align: center;
-  padding: 3px 2px;
+  padding: 3px 6px;
   border-radius: 6px;
   background: var(--skin-surface, rgba(255,255,255,.04));
+  white-space: nowrap;
 }
 .weather-row:last-child { padding-bottom: 3px; }
 .w-city-line {
@@ -486,19 +498,20 @@ body.mode-meditation .gramophone-card::before {
   transition: color var(--transition), border-color var(--transition), background var(--transition);
 }
 .weather-next-btn:hover { color: var(--skin-accent, var(--accent)); border-color: var(--skin-accent, var(--accent)); background: var(--surface-2); }
-.weather-next-btn svg { width: 11px; height: 11px; transform: rotate(90deg); }
+.weather-next-btn svg { width: 11px; height: 11px; transform: rotate(0deg); }
 
 .weather-collapse-btn {
   align-self: center;
-  width: 24px; height: 14px;
+  width: 18px; height: 18px;
   border: 1px solid var(--border);
   background: var(--skin-glass, rgba(255,255,255,.10));
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: var(--ink-soft);
-  border-radius: 999px;
+  border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer;
+  flex: 0 0 auto;
 }
 .weather-collapse-btn:hover { background: var(--skin-surface-2, rgba(255,255,255,.15)); }
 .weather-collapse-btn svg { width: 10px; height: 10px; transition: transform var(--transition); }
@@ -522,14 +535,22 @@ body.mode-meditation .gramophone-card::before {
 
 /* ریسپانسیو: موبایل بسته باشد تا روی فهرست نپوشاند */
 @media (max-width: 480px) {
-  .weather-widget { top: 75px; left: 4px; width: 105px; }
+    /* موبایل: باکس افقی در بالای صفحه */
+  .weather-widget { top: 60px; bottom: auto; left: auto; right: 8px; transform: none; width: auto; flex-direction: row; }
   .weather-widget:not(.collapsed) {
-    max-width: calc(100vw - 10px);
-    left: 4px;
+    max-width: calc(100vw - 16px);
+    left: auto;
+    right: 8px;
   }
   .weather-widget { z-index: 30; }
-  .weather-panel { padding: 4px 4px; }
-  .weather-row { padding: 2px 1px; }
+  .weather-panel { padding: 4px 4px; flex-direction: column; align-items: stretch; }
+  .weather-rows {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .weather-row { padding: 3px 4px; flex-direction: column; gap: 1px; }
+  .weather-next-btn { align-self: center; margin-top: 4px; }
   .w-city { font-size: 7px; }
   .w-icon { font-size: 12px; }
   .w-humidity { font-size: 6.5px; }
@@ -749,19 +770,19 @@ body.mode-meditation .disc {
   display: flex; align-items: center; justify-content: center;
 }
 .jump-to-playing-btn {
-  position: absolute;
-  bottom: 14px;
-  right: 16px;
   width: 30px;
   height: 30px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--ink-soft);
   border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  z-index: 3;
-  transition: color var(--transition), background var(--transition), transform var(--transition);
+  flex-shrink: 0;
+  margin: 8px auto 0;
+  transition: all var(--transition);
 }
 .jump-to-playing-btn:hover {
   color: var(--skin-accent-strong, var(--accent));
@@ -1464,6 +1485,9 @@ body.mode-meditation .disc {
 .settings-panel.open { display: flex; }
 
 .settings-card {
+  font-family: var(--font-settings);
+  font-size: 13px;
+  line-height: 1.45;
   width: min(460px, 94vw);
   background: var(--skin-surface, var(--surface));
   border: 1px solid var(--skin-border, var(--border));
@@ -1471,8 +1495,10 @@ body.mode-meditation .disc {
   box-shadow: var(--shadow-soft);
   padding: 12px 14px 10px;
 }
+.settings-card * { font-family: inherit; }
 .settings-card h2 {
-  font-family: var(--font-decorative);
+  font-family: var(--font-settings);
+  font-weight: 700;
   font-size: 16px;
   margin: 0 0 8px;
   text-align: center;

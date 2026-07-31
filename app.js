@@ -176,9 +176,9 @@ const MODE_ORDER = ["golha", "ganjoor", "hekayat", "meditation"];
    =================================================================== */
 const FONT_PACKS = {
   classic: {
-    ui: "'Vazirmatn', sans-serif",
+    ui: "'Noto Nastaliq Urdu', 'Vazirmatn', serif",
     heading: "'Noto Nastaliq Urdu', 'Vazirmatn', serif",
-    decorative: "'Lalezar', 'Vazirmatn', sans-serif",
+    decorative: "'Noto Nastaliq Urdu', 'Vazirmatn', serif",
     weights: {
       thin:   { ui: 300, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
       normal: { ui: 400, heading: 400, decorative: 400, strokeUi: 0,    strokeHeading: 0 },
@@ -217,6 +217,10 @@ function applyFontPack(packId) {
   document.documentElement.style.setProperty('--font-ui', pack.ui);
   document.documentElement.style.setProperty('--font-heading', pack.heading);
   document.documentElement.style.setProperty('--font-decorative', pack.decorative);
+  // پنل تنظیمات: برای دسته‌های کلاسیک/سنتی فونت بزرگ (نستعلیق/شهرزاد) پنل را
+  // خراب می‌کند — از فونت UI معمولی استفاده کن تا اندازه ثابت بماند
+  const settingsFont = (packId === 'classic' || packId === 'traditional') ? "'Vazirmatn', sans-serif" : pack.ui;
+  document.documentElement.style.setProperty('--font-settings', settingsFont);
   document.querySelectorAll('[data-fontpack]').forEach((b) => {
     b.classList.toggle('active', b.dataset.fontpack === packId);
   });
@@ -420,6 +424,20 @@ function groupedForRender() {
           work.chapterOrder = sortFormKeys(work.chapterOrder, work.chapters);
         }
       });
+      // شاهنامهٔ فردوسی: فصل‌ها به ترتیب روایی خودشان، نه بر اساس تعداد آیتم
+      if (k === "ابوالقاسم فردوسی" && g.works["شاهنامه"] && g.works["شاهنامه"].chapterOrder.length > 1) {
+        const SHAHNAMEH_ORDER = [
+          "آغاز کتاب", "کیومرث", "هوشنگ", "طهمورث", "جمشید", "ضحاک", "فریدون",
+          "پادشاهی زوطهماسپ", "پادشاهی گرشاسپ", "منوچهر", "پادشاهی نوذر",
+          "پادشاهی کیکاووس و رفتن او به مازندران", "رزم کاووس با شاه هاماوران",
+          "داستان کاموس کشانی", "سهراب", "داستان سیاوش", "کیقباد",
+          "پادشاهی یزدگرد", "پادشاهی شاپور پسر اردشیر سی و یک سال بود"
+        ];
+        const pos = {};
+        SHAHNAMEH_ORDER.forEach((c, i) => { pos[c] = i; });
+        const sh = g.works["شاهنامه"];
+        sh.chapterOrder.sort((a, b) => (pos[a] !== undefined ? pos[a] : 999) - (pos[b] !== undefined ? pos[b] : 999));
+      }
     });
   }
 
@@ -1922,6 +1940,8 @@ const MODE_SCRIPTS = {
   ganjoor: [
     // index first (5KB) — shows all 28 poets immediately
     'ganjoor-index.js',
+    // Ferdowsi (715KB but user wants all readings visible)
+    'ganjoor-ferdousi.js',
     // eager poets (<50KB each) load upfront
     'ganjoor-khajoo.js', 'ganjoor-obeyd.js', 'ganjoor-seyf.js', 'ganjoor-salim.js', 'ganjoor-anvari.js', 'ganjoor-eshghi.js', 'ganjoor-nezami.js',
     // aggregator + extra
@@ -2062,6 +2082,8 @@ function init() {
   // پیش‌فرض شافل «کل فهرست‌های کل حالات» — فقط index.js و ۷ شاعر سبک لود می‌شن
   // بقیه شاعران گنجور lazy می‌مانند تا شافل بهشون برسه (یک‌یکی در پس‌زمینه)
   ensureModeLoaded('ganjoor');
+  ensureModeLoaded('hekayat');
+  ensureModeLoaded('meditation');
 
   state.golhaList = [];
   state.ganjoorList = [];
@@ -2177,14 +2199,14 @@ function wireUI() {
 
   document.getElementById('lineHeightRange').addEventListener('input', (e) => {
     const v = e.target.value;
-    document.getElementById('lineHeightLabel').textContent = v.replace('.', '٫');
+    document.getElementById('lineHeightLabel').textContent = toFa(v.replace('.', '٫'));
     document.documentElement.style.setProperty('--line-height', v);
     try { localStorage.setItem('golava-lineheight', v); } catch(e) {}
   });
   try {
     const lh = localStorage.getItem('golava-lineheight') || '1.8';
     document.getElementById('lineHeightRange').value = lh;
-    document.getElementById('lineHeightLabel').textContent = lh.replace('.', '٫');
+    document.getElementById('lineHeightLabel').textContent = toFa(lh.replace('.', '٫'));
     document.documentElement.style.setProperty('--line-height', lh);
   } catch(e) {}
 
