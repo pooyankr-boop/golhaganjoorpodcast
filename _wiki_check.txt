@@ -1,0 +1,17 @@
+Abul_Chap_Paravaneh.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Chour_I_Selim_Khan.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Dachti_II_Selim_Khan.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Mahoor_Paravaneh.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Dokhtaran-e_Quchan-_دختران_قوچان.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Santur_by_Mohammad_R_Azadehfar.wav => status=429 len=2048 type=text/html; charset=utf-8
+Şerte_firê_bidem_bed_u_bedferî_-_Hesen_Zêrek.ogg => status=404 len=41826 type=text/html; charset=UTF-8
+Kûr_dellê_feleka_-_Hesen_Zêrek.ogg => status=404 len=41530 type=text/html; charset=UTF-8
+Ey_Reqib_-_Şivan_Perwer.wav => status=429 len=2048 type=text/html; charset=utf-8
+Kurdistan_(Instrumental).ogg => status=429 len=2048 type=text/html; charset=utf-8
+Roya_Ayxan_-_İrevanda_Xal_Qalmadı.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Xan_Shushinski_Shushanin_Daglari.ogg => status=429 len=2048 type=text/html; charset=utf-8
+Kuchelere_Su_Sepmishem_by_Rashid_Behbudov.ogg => status=429 len=2254 type=text/html; charset=utf-8
+Xaric_Segah_(c.1930).ogg => status=429 len=2254 type=text/html; charset=utf-8
+Karabakh_Shikestesi_music.ogg => status=429 len=2254 type=text/html; charset=utf-8
+Heyrati_mugam.ogg => status=429 len=2254 type=text/html; charset=utf-8
+Arazbari_by_Jabbar_Karyagdi.ogg => status=429 len=2254 type=text/html; charset=utf-8
