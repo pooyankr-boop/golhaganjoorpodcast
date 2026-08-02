@@ -140,34 +140,31 @@ html[data-theme="abgineh"] {
   --glass-strong: rgba(9,24,48,.6);
 }
 
-/* گرامافون آبگینه — بدنهٔ شیشه‌ای به رنگ هر حالت */
+/* گرامافون آبگینه — بدنهٔ شیشه‌ای به رنگ هر حالت؛ صفحه در همهٔ حالت‌ها با برچسب آبگینه */
 html[data-theme="abgineh"] body.mode-golha .turntable {
   background: linear-gradient(150deg, #3d0d1e, #17040c);
-}
-html[data-theme="abgineh"] body.mode-golha .disc {
-  background: repeating-radial-gradient(circle at 50% 50%, #2a0612 0 2px, #4a0d1e 2px 4px);
-  background-image: none;
 }
 html[data-theme="abgineh"] body.mode-ganjoor .turntable {
   background: linear-gradient(150deg, #0d3a3a, #041a1a);
 }
-html[data-theme="abgineh"] body.mode-ganjoor .disc {
-  background: repeating-radial-gradient(circle at 50% 50%, #062020 0 2px, #0d3a3a 2px 4px);
-  background-image: none;
-}
 html[data-theme="abgineh"] body.mode-hekayat .turntable {
   background: linear-gradient(150deg, #4a2a0d, #1a0d04);
-}
-html[data-theme="abgineh"] body.mode-hekayat .disc {
-  background: repeating-radial-gradient(circle at 50% 50%, #2a1a06 0 2px, #4a2a0d 2px 4px);
-  background-image: none;
 }
 html[data-theme="abgineh"] body.mode-meditation .turntable {
   background: linear-gradient(150deg, #2a1a4a, #10081f);
 }
+/* صفحهٔ آبگینه — برچسب طلایی روی صفحه در همهٔ حالت‌ها (مثل طلوع/غروب) */
+html[data-theme="abgineh"] body.mode-golha .disc,
+html[data-theme="abgineh"] body.mode-ganjoor .disc,
+html[data-theme="abgineh"] body.mode-hekayat .disc,
 html[data-theme="abgineh"] body.mode-meditation .disc {
-  background: repeating-radial-gradient(circle at 50% 50%, #1a0f30 0 2px, #2a1a4a 2px 4px);
-  background-image: none;
+  background-image: var(--label-image) !important;
+  background-size: cover;
+  background-position: center;
+}
+/* چرخش همیشگی در حالت رادیو (گل‌ها) حتی پیش از پخش */
+html[data-theme="abgineh"] body.mode-golha .disc {
+  animation-play-state: running;
 }
 
 /* چارچوب آبگینه دور کارت گرامافون */
@@ -190,7 +187,7 @@ html[data-theme="abgineh"] .collection::before {
   position: absolute;
   top: 0; left: 0;
   width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner.webp") no-repeat top left / 96px 96px;
+  background: url("imgs/abgineh-corner-br.webp") no-repeat top left / 96px 96px;
   opacity: .55;
   pointer-events: none;
   z-index: 1;
@@ -200,7 +197,7 @@ html[data-theme="abgineh"] .collection::after {
   position: absolute;
   bottom: 0; right: 0;
   width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner-br.webp") no-repeat bottom right / 96px 96px;
+  background: url("imgs/abgineh-corner.webp") no-repeat bottom right / 96px 96px;
   opacity: .55;
   pointer-events: none;
   z-index: 1;
