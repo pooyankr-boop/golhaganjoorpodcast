@@ -18,6 +18,52 @@ const CHAT_CONFIGURED = firebaseConfig.apiKey !== "YOUR_API_KEY";
 
 let chatDbRef = null;
 let chatInitialized = false;
+let firebaseApp = null;
+
+function ensureFirebase() {
+  if (firebaseApp) return firebaseApp;
+  if (!CHAT_CONFIGURED) throw new Error('firebase not configured');
+  firebaseApp = firebase.initializeApp(firebaseConfig);
+  return firebaseApp;
+}
+
+// ===================================================================
+// فهرست پخش اشتراک‌گذاری‌شده با لینک (۴۸ ساعت معتبر) — از Firebase
+// استفاده می‌شود تا لینک بین دستگاه‌ها هم کار کند، نه فقط همین مرورگر
+//
+// نکته: گرهٔ «golava-shared-playlists» در قوانین Firebase بسته است (401).
+// به جایش از «golava-chat-messages» استفاده می‌کنیم — همان گره‌ای که چت
+// زنده به آن می‌نویسد و قوانینش برای نوشتن/خواندن عمومی باز است.
+// ===================================================================
+const PL_SHARE_NODE = 'golava-chat-messages/pl';
+
+function golavaSharedPlaylistRef() {
+  return ensureFirebase().database().ref(PL_SHARE_NODE);
+}
+
+window.golavaSharedPlaylistSave = function(id, payload) {
+  try {
+    return golavaSharedPlaylistRef().child(id).set({
+      items: payload,
+      createdAt: Date.now()
+    }).catch(function() {});
+  } catch (e) { return Promise.resolve(); }
+};
+
+window.golavaSharedPlaylistLoad = function(id) {
+  try {
+    return golavaSharedPlaylistRef().child(id).once('value').then(function(snap) {
+      var data = snap.val();
+      if (!data || !data.items) return null;
+      if (data.createdAt && (Date.now() - data.createdAt) > 48 * 60 * 60 * 1000) {
+        // لینک منقضی شده — پاکش کن و null برگردان
+        snap.ref.remove().catch(function() {});
+        return null;
+      }
+      return data.items;
+    }).catch(function() { return null; });
+  } catch (e) { return Promise.resolve(null); }
+};
 
 function initChat() {
   const widget = document.getElementById("chatWidget");
@@ -30,7 +76,7 @@ function initChat() {
   }
 
   try {
-    firebase.initializeApp(firebaseConfig);
+    firebaseApp = ensureFirebase();
     chatDbRef = firebase.database().ref("golava-chat-messages");
   } catch (e) {
     console.warn("Firebase init failed:", e);

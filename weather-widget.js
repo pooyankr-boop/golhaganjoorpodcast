@@ -3,13 +3,14 @@
    داده‌ها از Open-Meteo (رایگان، بدون نیاز به کلید API)
    =================================================================== */
 (function () {
-  // دسته اول: پایتخت‌های فارسی‌زبان + ۲ شهر پراهمیت
+  // دسته اول: پایتخت‌های فارسی‌زبان + ۳ شهر پراهمیت
   var FIRST_BATCH = [
     { name: 'تهران', lat: 35.6892, lon: 51.3890 },
     { name: 'کابل', lat: 34.5553, lon: 69.2075 },
     { name: 'دوشنبه', lat: 38.5598, lon: 68.7870 },
     { name: 'اصفهان', lat: 32.6546, lon: 51.6680 },
-    { name: 'شیراز', lat: 29.5918, lon: 52.5837 }
+    { name: 'شیراز', lat: 29.5918, lon: 52.5837 },
+    { name: 'مشهد', lat: 36.2605, lon: 59.6168 }
   ];
   // سایر شهرهای مهم
   var OTHER_CITIES = [
@@ -54,7 +55,7 @@
     { name: 'کولاب', lat: 37.9139, lon: 69.7822 }
   ];
 
-  var PAGE_SIZE = 5;
+  var PAGE_SIZE = 6;
   var firstShown = false;
   var usedIdx = [];
 
@@ -213,9 +214,16 @@
   function init() {
     var nextBtn = document.getElementById('weatherNextBtn');
     var collapseBtn = document.getElementById('weatherCollapseBtn');
+    var closeBtn = document.getElementById('weatherCloseBtn');
     var widget = document.getElementById('weatherWidget');
     if (!nextBtn || !widget) return;
     nextBtn.addEventListener('click', showNextBatch);
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        // فقط برای همین بازدید — با رفرش/ورود مجدد دوباره نمایش داده می‌شود
+        widget.classList.add('closed');
+      });
+    }
     if (collapseBtn) {
       collapseBtn.addEventListener('click', function () {
         widget.classList.toggle('collapsed');

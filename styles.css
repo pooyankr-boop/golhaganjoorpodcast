@@ -119,7 +119,7 @@ html[data-theme="sunset"] {
 /* ========== تم آبگینه — شیشه‌گر ایرانی، لاجورد و فیروزه ========== */
 html[data-theme="abgineh"] {
   --bg: #071528;
-  --bg-image: url("imgs/abgineh-bg.webp");
+  --bg-image: url("abgineh-bg.webp");
   --surface: rgba(10,22,44,.66);
   --surface-2: rgba(16,34,64,.62);
   --ink: #e8eef5;
@@ -129,12 +129,12 @@ html[data-theme="abgineh"] {
   --gold: #d4a643;
   --border: rgba(190,222,255,.16);
   --paper-bg: #cfe0ee;
-  --paper-image: url("imgs/abgineh-paper.webp");
+  --paper-image: url("abgineh-paper.webp");
   --wood-a: #153a63;
   --wood-b: #0a1e3a;
   --label-bg: #0a1e3a;
-  --label-image: url("imgs/abgineh-label.webp");
-  --emblem-image: url("imgs/abgineh-emblem.webp");
+  --label-image: url("abgineh-label.webp");
+  --emblem-image: url("abgineh-emblem.webp");
   --metal-a: #1c3554;
   --metal-b: #0d1f38;
   --glass-strong: rgba(9,24,48,.6);
@@ -171,7 +171,7 @@ html[data-theme="abgineh"] body.mode-golha .disc {
 html[data-theme="abgineh"] .gramophone-card {
   border: none;
   background: rgba(9,24,48,.5);
-  background-image: url("imgs/abgineh-frame.webp");
+  background-image: url("abgineh-frame.webp");
   background-size: 100% 100%;
   background-position: center;
   background-repeat: no-repeat;
@@ -187,7 +187,7 @@ html[data-theme="abgineh"] .collection::before {
   position: absolute;
   top: 0; left: 0;
   width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner-br.webp") no-repeat top left / 96px 96px;
+  background: url("abgineh-corner-br.webp") no-repeat top left / 96px 96px;
   opacity: .55;
   pointer-events: none;
   z-index: 1;
@@ -199,7 +199,7 @@ html[data-theme="abgineh"] .collection::after {
   position: absolute;
   bottom: 0; right: 0;
   width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner.webp") no-repeat bottom right / 96px 96px;
+  background: url("abgineh-corner.webp") no-repeat bottom right / 96px 96px;
   opacity: .55;
   pointer-events: none;
   z-index: 1;
@@ -217,7 +217,7 @@ html[data-theme="abgineh"] body::after {
   content: "";
   position: fixed;
   inset: 0;
-  background: url("imgs/abgineh-pattern.webp") center / cover no-repeat;
+  background: url("abgineh-pattern.webp") center / cover no-repeat;
   opacity: .07;
   pointer-events: none;
   z-index: 2;
@@ -225,38 +225,16 @@ html[data-theme="abgineh"] body::after {
 
 /* کشوی اطلاعات — کاغذ آبی یخی */
 html[data-theme="abgineh"] .drawer-content {
-  position: relative;
   background-color: var(--paper-bg);
   background-image: var(--paper-image);
   background-size: cover;
   background-position: center;
 }
-/* گوشه‌های کاغذ: پایین‌چپ = corner-br، بالا‌راست = corner */
-html[data-theme="abgineh"] .drawer-content::before {
-  content: "";
-  position: absolute;
-  bottom: 0; left: 0;
-  width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner-br.webp") no-repeat bottom left / 96px 96px;
-  opacity: .5;
-  pointer-events: none;
-  z-index: 1;
-}
-html[data-theme="abgineh"] .drawer-content::after {
-  content: "";
-  position: absolute;
-  top: 0; right: 0;
-  width: 96px; height: 96px;
-  background: url("imgs/abgineh-corner.webp") no-repeat top right / 96px 96px;
-  opacity: .5;
-  pointer-events: none;
-  z-index: 1;
-}
 html[data-theme="abgineh"] .drawer-content .drawer-empty {
   color: #33475e;
 }
 html[data-theme="abgineh"] .drawer-toggle {
-  background-image: url("imgs/abgineh-paper2.webp");
+  background-image: url("abgineh-paper2.webp");
   background-size: cover;
   background-position: center;
   color: #10233a;
@@ -271,20 +249,20 @@ html[data-theme="abgineh"] .playlist-head::after {
   content: "";
   width: 100%;
   height: 30px;
-  background: url("imgs/abgineh-divider.webp") center / 100% 100% no-repeat;
+  background: url("abgineh-divider.webp") center / 100% 100% no-repeat;
   opacity: .8;
 }
 
 /* پس‌زمینهٔ شیشه‌ای هر حالت */
-html[data-theme="abgineh"] body.mode-golha { --bg-image: url("imgs/abgineh-glass-golha.webp"); }
-html[data-theme="abgineh"] body.mode-ganjoor { --bg-image: url("imgs/abgineh-glass-ganjoor.webp"); }
-html[data-theme="abgineh"] body.mode-hekayat { --bg-image: url("imgs/abgineh-glass-hekayat.webp"); }
-html[data-theme="abgineh"] body.mode-meditation { --bg-image: url("imgs/abgineh-glass-meditation.webp"); }
+html[data-theme="abgineh"] body.mode-golha { --bg-image: url("abgineh-glass-golha.webp"); }
+html[data-theme="abgineh"] body.mode-ganjoor { --bg-image: url("abgineh-glass-ganjoor.webp"); }
+html[data-theme="abgineh"] body.mode-hekayat { --bg-image: url("abgineh-glass-hekayat.webp"); }
+html[data-theme="abgineh"] body.mode-meditation { --bg-image: url("abgineh-glass-meditation.webp"); }
 
 /* حباب چت و پس‌زمینهٔ تمام‌صفحه به سبک آبگینه */
 html[data-theme="abgineh"] #fullscreenVinyl {
   opacity: .5;
-  background-image: url("imgs/abgineh-fullscreen.webp");
+  background-image: url("abgineh-fullscreen.webp");
   background-size: cover;
 }
 html[data-theme="abgineh"] .chat-history {
