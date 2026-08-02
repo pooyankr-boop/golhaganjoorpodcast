@@ -191,6 +191,8 @@ html[data-theme="abgineh"] .collection::before {
   opacity: .55;
   pointer-events: none;
   z-index: 1;
+  transform: rotate(0deg);
+  transition: transform .5s ease;
 }
 html[data-theme="abgineh"] .collection::after {
   content: "";
@@ -201,6 +203,13 @@ html[data-theme="abgineh"] .collection::after {
   opacity: .55;
   pointer-events: none;
   z-index: 1;
+  transform: rotate(0deg);
+  transition: transform .5s ease;
+}
+/* با باز شدن فهرست: ۹۰° ساعت‌گرد؛ با بستن: برگشت پادساعت‌گرد */
+html[data-theme="abgineh"] .collection[open]::before,
+html[data-theme="abgineh"] .collection[open]::after {
+  transform: rotate(90deg);
 }
 
 /* بافت اسلیمی سراسری — لایهٔ محو روی کل صفحه */
@@ -216,10 +225,32 @@ html[data-theme="abgineh"] body::after {
 
 /* کشوی اطلاعات — کاغذ آبی یخی */
 html[data-theme="abgineh"] .drawer-content {
+  position: relative;
   background-color: var(--paper-bg);
   background-image: var(--paper-image);
   background-size: cover;
   background-position: center;
+}
+/* گوشه‌های کاغذ: پایین‌چپ = corner-br، بالا‌راست = corner */
+html[data-theme="abgineh"] .drawer-content::before {
+  content: "";
+  position: absolute;
+  bottom: 0; left: 0;
+  width: 96px; height: 96px;
+  background: url("imgs/abgineh-corner-br.webp") no-repeat bottom left / 96px 96px;
+  opacity: .5;
+  pointer-events: none;
+  z-index: 1;
+}
+html[data-theme="abgineh"] .drawer-content::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0;
+  width: 96px; height: 96px;
+  background: url("imgs/abgineh-corner.webp") no-repeat top right / 96px 96px;
+  opacity: .5;
+  pointer-events: none;
+  z-index: 1;
 }
 html[data-theme="abgineh"] .drawer-content .drawer-empty {
   color: #33475e;
