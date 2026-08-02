@@ -111,10 +111,10 @@ function playSynthNoise(type) {
 
 let state = {
   mode: "golha",
-  theme: "sunrise",
-  fontPack: "classic",
-  weightLevel: "normal",
-  fontScale: 16,
+  theme: "abgineh",
+  fontPack: "modern",
+  weightLevel: "bold",
+  fontScale: 23,
   golhaList: [],
   ganjoorList: [],
   hekayatList: [],
@@ -268,16 +268,28 @@ function loadSavedSettings() {
     const fp = localStorage.getItem("golava-fontpack");
     const wl = localStorage.getItem("golava-weightlevel");
     const s = localStorage.getItem("golava-scale");
-    applyTheme(t || "sunrise");
-    applyFontPack(fp || "classic");
-    applyFontWeight(wl || "normal");
-    applyFontScale(s ? parseInt(s, 10) : 15);
+    applyTheme(t || "abgineh");
+    applyFontPack(fp || "modern");
+    applyFontWeight(wl || "bold");
+    applyFontScale(s ? parseInt(s, 10) : 23);
     document.getElementById("fontSizeRange").value = state.fontScale;
+    // رنگ پیش‌فرض اولین ورود: پوستهٔ سرمه‌ای + متن سبز — فقط وقتی کاربر هنوز
+    // رنگی انتخاب نکرده (بعداً انتخاب خودش از localStorage می‌آید)
+    try {
+      if (!localStorage.getItem('golava-skincolor')) applySkinColor('#1a2a4a');
+    } catch (e) {}
+    try {
+      if (!localStorage.getItem('golava-fontcolor')) {
+        document.querySelectorAll('.drawer-content .drawer-body, .drawer-content h3, .drawer-content .drawer-meta').forEach(function(el) {
+          el.style.color = '#2d5a27';
+        });
+      }
+    } catch (e) {}
   } catch (e) {
-    applyTheme("sunrise");
-    applyFontPack("classic");
-    applyFontWeight("normal");
-    applyFontScale(15);
+    applyTheme("abgineh");
+    applyFontPack("modern");
+    applyFontWeight("bold");
+    applyFontScale(23);
   }
 }
 
@@ -1344,12 +1356,17 @@ function playAcrossModes(excludeMode, excludeIdx) {
   }
 
   // شاعر لودنشده: لود کن، بعد یک شعر تصادفی ازش پخش کن
+  // نکته مهم: چند فایلِ یک شاعر (مثل دیوان شمس و مثنوی مولانا) ممکن است
+  // هم‌زمان در صف لود باشند یا لود شده باشند؛ این‌جا فقط همان فایلی که
+  // انتخاب شد لود می‌شود تا رفتار شافل سبک بماند و از همهٔ شاعران پخش کند
   if (pick.lazyPoet) {
     loadScript(pick.lazyPoet.file).then(function() {
       try { if (typeof ganjoorRebuildPoems === 'function') ganjoorRebuildPoems(); } catch (e) {}
       buildGanjoorList();
       if (state.mode === 'ganjoor') { renderPlaylist(); renderDrawer(); }
-      // یک شعر تصادفی از این شاعر پیدا کن
+      // یک شعر تصادفی از این شاعر پیدا کن — نکته: بعضی شاعران (مثل مولانا)
+      // چند فایل دارند با poetName یکسان؛ همهٔ فایل‌های لودشدهٔ همین شاعر را
+      // در نظر بگیر، نه فقط فایلی که الان لود کردیم
       var poetName = pick.lazyPoet.poetName;
       var candidates = [];
       state.ganjoorList.forEach(function(it, idx) { if (it.poet === poetName) candidates.push(idx); });
@@ -1893,6 +1910,161 @@ function tryDeepLinkPlay() {
   return true;
 }
 
+/* ===================================================================
+   اشتراک‌گذاری فهرست پخش با لینک (۴۸ ساعت معتبر)
+   =================================================================== */
+const PLAYLIST_SHARE_TTL = 48 * 60 * 60 * 1000; // ۴۸ ساعت
+
+function buildPlaylistSharePayload() {
+  return state.playlist.map(function(item) {
+    var p = {
+      src: item.src || '',
+      url: item.url || '',
+      title: item.title || '',
+      mode: item.mode || ''
+    };
+    // فقط فیلدهای لازم برای پخش — بقیهٔ متادیتا از فهرست حالت بازسازی می‌شود
+    if (item.performer) p.performer = item.performer;
+    if (item.poet) p.poet = item.poet;
+    if (item.author) p.author = item.author;
+    if (item.category) p.category = item.category;
+    if (item.collection) p.collection = item.collection;
+    if (item.subtitle) p.subtitle = item.subtitle;
+    if (item.reciter) p.reciter = item.reciter;
+    if (item.formLabel) p.formLabel = item.formLabel;
+    if (item.categoryId) p.categoryId = item.categoryId;
+    if (item.collectionId) p.collectionId = item.collectionId;
+    if (item.subCollection) p.subCollection = item.subCollection;
+    if (item.duration) p.duration = item.duration;
+    if (item.synthType) p.synthType = item.synthType;
+    return p;
+  });
+}
+
+function sharePlaylist() {
+  if (!state.playlist.length) { showToast('فهرست پخش خالی است — اول چیزی اضافه کنید'); return; }
+  var payload = buildPlaylistSharePayload();
+  var id = 'pl' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  // Firebase بین دستگاه‌ها کار می‌کند؛ localStorage فقط همین مرورگر
+  var hasFirebase = typeof window.golavaSharedPlaylistSave === 'function';
+  if (!hasFirebase) {
+    try {
+      localStorage.setItem('golava-shared-playlist-' + id, JSON.stringify({ items: payload, createdAt: Date.now() }));
+    } catch (e) {
+      // localStorage پر/خطا — فهرست را مستقیم در لینک بگذار (فقط اگر جا شود)
+      try {
+        var enc = encodeURIComponent(JSON.stringify(payload));
+        if (enc.length < 3500) {
+          var url2 = window.location.origin + window.location.pathname + '?pl=' + enc;
+          copyShareLink(url2, payload.length);
+          return;
+        }
+      } catch (e2) {}
+      showToast('فهرست پخش برای اشتراک‌گذاری خیلی بزرگ است');
+      return;
+    }
+  }
+  var url = window.location.origin + window.location.pathname + '?pl=' + id;
+  if (hasFirebase) {
+    window.golavaSharedPlaylistSave(id, payload).then(function() {
+      copyShareLink(url, payload.length);
+    });
+  } else {
+    copyShareLink(url, payload.length);
+  }
+}
+
+function copyShareLink(url, count) {
+  var text = 'رادیو آواک — فهرست پخش ' + toFa(count) + ' فایل\n' + url;
+  var shareData = { title: 'فهرست پخش رادیو آواک', text: text, url: url };
+  if (navigator.share) {
+    navigator.share(shareData).catch(function() {});
+  } else if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('لینک فهرست پخش کپی شد');
+    }).catch(function() {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('لینک فهرست پخش کپی شد');
+  } catch (e) { showToast('لینک: ' + url); }
+}
+
+function trySharedPlaylist() {
+  var params = new URLSearchParams(window.location.search);
+  var pl = params.get('pl');
+  if (!pl) return false;
+  var payload = null;
+  var hasFirebase = typeof window.golavaSharedPlaylistLoad === 'function';
+  var raw = null;
+  try { raw = localStorage.getItem('golava-shared-playlist-' + pl); } catch (e) {}
+  if (raw) {
+    try {
+      var data = JSON.parse(raw);
+      if (data.createdAt && (Date.now() - data.createdAt) > PLAYLIST_SHARE_TTL) {
+        try { localStorage.removeItem('golava-shared-playlist-' + pl); } catch (e) {}
+        raw = null;
+      } else {
+        payload = data.items;
+      }
+    } catch (e) { raw = null; }
+  }
+  if (!payload && hasFirebase) {
+    // لینک از دستگاه دیگر آمده — از Firebase بخوان
+    window.golavaSharedPlaylistLoad(pl).then(function(items) {
+      if (!items || !items.length) return; // منقضی یا ناشناخته — صفحهٔ اول
+      applySharedPlaylist(items);
+    });
+    return true; // لینک پلی‌لیست است؛ حتی اگر خالی بود صفحهٔ اول بماند
+  }
+  if (!payload || !payload.length) return false;
+  applySharedPlaylist(payload);
+  return true;
+}
+
+// پلی‌لیست اشتراکی را نشان بده + روشن کن + فهرست همهٔ حالت‌های لازم را از قبل لود کن
+// (بدون پخش خودکار — کاربر با کلیک روی پلی‌لیست یا دکمهٔ پلی، پخش را شروع می‌کند)
+function applySharedPlaylist(items) {
+  state.playlist = items;
+  state.playlistEnabled = true;
+  togglePlaylistOnOff(true);
+  renderPlaylistQueue();
+  // برای هر فایل پلی‌لیست، حالتش را لود کن تا به‌محض کلیک روی پلی، فایل همان‌جا آماده باشد
+  var modes = [];
+  items.forEach(function(it) {
+    var m = it.mode || 'golha';
+    if (modes.indexOf(m) < 0) modes.push(m);
+  });
+  var chain = Promise.resolve();
+  modes.forEach(function(m) {
+    chain = chain.then(function() { return ensureModeLoaded(m); });
+  });
+  chain.then(function() {
+    // حالت را روی حالتِ اولین فایل بگذار تا فهرست اصلی هم همان محتوا را نشان دهد
+    var firstMode = items[0].mode || 'golha';
+    if (state.mode !== firstMode) {
+      state.mode = firstMode;
+      updateModeUI();
+    }
+    renderPlaylist();
+    renderDrawer();
+  });
+}
+
 function setupMiniPlayer() {
   const wrap = document.querySelector('.player-wrap');
   const mini = document.getElementById('miniPlayer');
@@ -2095,6 +2267,7 @@ function init() {
   renderDrawer();
 
   if (tryDeepLinkPlay()) return;
+  if (trySharedPlaylist()) return;
 
   ensureModeLoaded('golha').then(function() {
     renderPlaylist();
@@ -2204,7 +2377,7 @@ function wireUI() {
     try { localStorage.setItem('golava-lineheight', v); } catch(e) {}
   });
   try {
-    const lh = localStorage.getItem('golava-lineheight') || '1.8';
+    const lh = localStorage.getItem('golava-lineheight') || '1.3';
     document.getElementById('lineHeightRange').value = lh;
     document.getElementById('lineHeightLabel').textContent = toFa(lh.replace('.', '٫'));
     document.documentElement.style.setProperty('--line-height', lh);
@@ -2258,6 +2431,8 @@ function wireUI() {
   if (plShuffle) plShuffle.addEventListener('click', function() { cyclePlaylistShuffle(); });
   var plRepeat = document.getElementById('playlistRepeatBtn');
   if (plRepeat) plRepeat.addEventListener('click', function() { cyclePlaylistRepeat(); });
+  var plShare = document.getElementById('playlistShareBtn');
+  if (plShare) plShare.addEventListener('click', function() { sharePlaylist(); });
   var plClear = document.getElementById('playlistClearBtn');
   if (plClear) plClear.addEventListener('click', function() {
     if (state.playlist.length) {
