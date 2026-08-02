@@ -116,11 +116,123 @@ html[data-theme="sunset"] {
   --glass-strong: rgba(38,26,34,.55);
 }
 
+/* ========== تم آبگینه — شیشه‌گر ایرانی، لاجورد و فیروزه ========== */
+html[data-theme="abgineh"] {
+  --bg: #071528;
+  --bg-image: url("imgs/abgineh-bg.webp");
+  --surface: rgba(10,22,44,.66);
+  --surface-2: rgba(16,34,64,.62);
+  --ink: #e8eef5;
+  --ink-soft: #9db4c9;
+  --accent: #d4a643;
+  --accent-2: #2fd4b0;
+  --gold: #d4a643;
+  --border: rgba(190,222,255,.16);
+  --paper-bg: #0e2138;
+  --paper-image: none;
+  --wood-a: #153a63;
+  --wood-b: #0a1e3a;
+  --label-bg: #0a1e3a;
+  --label-image: url("imgs/abgineh-label.webp");
+  --emblem-image: url("imgs/abgineh-emblem.webp");
+  --metal-a: #1c3554;
+  --metal-b: #0d1f38;
+  --glass-strong: rgba(9,24,48,.6);
+}
+
+/* گرامافون آبگینه — بدنهٔ شیشه‌ای به رنگ هر حالت */
+html[data-theme="abgineh"] body.mode-golha .turntable {
+  background: linear-gradient(150deg, #3d0d1e, #17040c);
+}
+html[data-theme="abgineh"] body.mode-golha .disc {
+  background: repeating-radial-gradient(circle at 50% 50%, #2a0612 0 2px, #4a0d1e 2px 4px);
+  background-image: none;
+}
+html[data-theme="abgineh"] body.mode-ganjoor .turntable {
+  background: linear-gradient(150deg, #0d3a3a, #041a1a);
+}
+html[data-theme="abgineh"] body.mode-ganjoor .disc {
+  background: repeating-radial-gradient(circle at 50% 50%, #062020 0 2px, #0d3a3a 2px 4px);
+  background-image: none;
+}
+html[data-theme="abgineh"] body.mode-hekayat .turntable {
+  background: linear-gradient(150deg, #4a2a0d, #1a0d04);
+}
+html[data-theme="abgineh"] body.mode-hekayat .disc {
+  background: repeating-radial-gradient(circle at 50% 50%, #2a1a06 0 2px, #4a2a0d 2px 4px);
+  background-image: none;
+}
+html[data-theme="abgineh"] body.mode-meditation .turntable {
+  background: linear-gradient(150deg, #2a1a4a, #10081f);
+}
+html[data-theme="abgineh"] body.mode-meditation .disc {
+  background: repeating-radial-gradient(circle at 50% 50%, #1a0f30 0 2px, #2a1a4a 2px 4px);
+  background-image: none;
+}
+
+/* چارچوب آبگینه دور کارت گرامافون */
+html[data-theme="abgineh"] .gramophone-card {
+  border: none;
+  background: rgba(9,24,48,.5);
+  background-image: url("imgs/abgineh-frame.webp");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+html[data-theme="abgineh"] .gramophone-card::before { display: none; }
+
+/* تزیین گوشه‌های دیدپورتی — پنل‌های شیشه‌ای با نشان آبگینه */
+html[data-theme="abgineh"] body::after {
+  content: "";
+  position: fixed;
+  top: 0; right: 0;
+  width: 130px; height: 130px;
+  background: url("imgs/abgineh-corner.webp") no-repeat top right / 130px 130px;
+  opacity: .45;
+  pointer-events: none;
+  z-index: 2;
+}
+html[data-theme="abgineh"] .gramophone-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0; right: 0;
+  width: 110px; height: 110px;
+  background: url("imgs/abgineh-corner-br.webp") no-repeat bottom right / 110px 110px;
+  opacity: .35;
+  pointer-events: none;
+}
+
+/* پس‌زمینهٔ شیشه‌ای هر حالت */
+html[data-theme="abgineh"] body.mode-golha { --bg-image: url("imgs/abgineh-glass-golha.webp"); }
+html[data-theme="abgineh"] body.mode-ganjoor { --bg-image: url("imgs/abgineh-glass-ganjoor.webp"); }
+html[data-theme="abgineh"] body.mode-hekayat { --bg-image: url("imgs/abgineh-glass-hekayat.webp"); }
+html[data-theme="abgineh"] body.mode-meditation { --bg-image: url("imgs/abgineh-glass-meditation.webp"); }
+
+/* حباب چت و پس‌زمینهٔ تمام‌صفحه به سبک آبگینه */
+html[data-theme="abgineh"] #fullscreenVinyl {
+  opacity: .5;
+  background-image: url("imgs/abgineh-fullscreen.webp");
+  background-size: cover;
+}
+html[data-theme="abgineh"] .chat-history {
+  background: rgba(16,34,64,.5);
+  border: 1px solid rgba(190,222,255,.18);
+}
+html[data-theme="abgineh"] .chat-telegram-link {
+  background: rgba(16,34,64,.5);
+  border-color: rgba(190,222,255,.18);
+}
+html[data-theme="abgineh"] .mode-emblem {
+  width: 110px; height: 110px;
+  box-shadow: 0 0 0 4px rgba(212,166,67,.25), 0 0 25px rgba(0,0,0,.35);
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 
 body {
   min-height: 100vh;
+  display: flow-root; /* BFC — مانع از خروج margin بالای stage از بدنه (بدنه را ۸۰px پایین نمی‌کشد) */
   background-color: var(--bg);
   background-image: var(--bg-image);
   background-size: cover;
@@ -146,7 +258,8 @@ body::before {
   z-index: 0;
 }
 html[data-theme="light"] body::before,
-html[data-theme="dark"] body::before { display: none; }
+html[data-theme="dark"] body::before,
+html[data-theme="abgineh"] body::before { display: none; }
 
 /* ========== Fullscreen vinyl bg ========== */
 #fullscreenVinyl {
@@ -161,6 +274,7 @@ html[data-theme="dark"] body::before { display: none; }
 }
 html[data-theme="sunrise"] #fullscreenVinyl { opacity: 0; }
 html[data-theme="sunset"] #fullscreenVinyl { opacity: 0.35; }
+html[data-theme="abgineh"] #fullscreenVinyl { opacity: 0.5; }
 
 .icon-btn {
   width: 46px;
@@ -221,7 +335,8 @@ body.mode-golha .mode-emblem {
 }
 
 html[data-theme="sunrise"] .mode-emblem,
-html[data-theme="sunset"] .mode-emblem {
+html[data-theme="sunset"] .mode-emblem,
+html[data-theme="abgineh"] .mode-emblem {
   width: 110px;
   height: 110px;
   box-shadow: 0 0 0 4px rgba(255,215,0,.3), 0 0 25px rgba(0,0,0,.3);
@@ -255,6 +370,7 @@ body.mode-meditation .mode-emblem {
 html[data-theme="light"] .mode-emblem .icon-btn svg {
   stroke: rgba(0,0,0,.78);
 }
+html[data-theme="abgineh"] .mode-emblem .icon-btn svg { display: none !important; }
 
 /* نوار راهنمای حالت‌ها */
 .mode-indicators {
@@ -394,12 +510,15 @@ body.mode-meditation .gramophone-card::before {
 
 /* ========== گجت هواشناسی — نسخه فشرده ========== */
 .weather-widget {
-  position: fixed;
-  top: 60px;
-  left: 50%;
-  transform: translateX(-50%);
+  /* فقط بالای صفحه — با اسکرول با بقیهٔ محتوا بالا می‌رود، مثل اجزای چهارگوشه نمی‌چسبد */
+  position: absolute;
+  top: 14px; /* همراستا با لبهٔ بالای دکمهٔ تنظیمات */
+  right: 150px; /* سمت راست بالا، کنار دکمهٔ تغییر حالت — زیرش نمی‌رود */
+  left: auto;
+  transform: none;
   width: auto;
   max-width: calc(100vw - 20px);
+  height: 36px; /* ثابت — جمع شدن پنل هوا جای نوار تاریخ را عوض نکند */
   z-index: 35;
   display: flex;
   flex-direction: row;
@@ -424,6 +543,7 @@ body.mode-meditation .gramophone-card::before {
   flex-direction: row;
   align-items: stretch;
   gap: 4px;
+  flex: 0 0 auto; /* جمع نشود که ۶ شهر زیر دکمهٔ حالت گم نشوند */
   background: var(--skin-glass, rgba(255,255,255,.07));
   backdrop-filter: blur(20px) saturate(1.1);
   -webkit-backdrop-filter: blur(20px) saturate(1.1);
@@ -437,7 +557,7 @@ body.mode-meditation .gramophone-card::before {
 }
 .weather-widget.collapsed .weather-panel {
   max-width: 0;
-  max-height: none;
+  max-height: 0;
   padding: 0;
   opacity: 0;
   pointer-events: none;
@@ -447,6 +567,8 @@ body.mode-meditation .gramophone-card::before {
 .weather-rows {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 4px;
 }
 .weather-row {
@@ -500,6 +622,23 @@ body.mode-meditation .gramophone-card::before {
 .weather-next-btn:hover { color: var(--skin-accent, var(--accent)); border-color: var(--skin-accent, var(--accent)); background: var(--surface-2); }
 .weather-next-btn svg { width: 11px; height: 11px; transform: rotate(0deg); }
 
+.weather-close-btn {
+  align-self: center;
+  width: 18px; height: 18px;
+  border: 1px solid var(--border);
+  background: var(--skin-glass, rgba(255,255,255,.10));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--ink-soft);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition: color var(--transition), background var(--transition);
+}
+.weather-close-btn:hover { background: rgba(220,60,60,.25); color: #e05a5a; }
+.weather-close-btn svg { width: 10px; height: 10px; }
+.weather-widget.closed { display: none; }
 .weather-collapse-btn {
   align-self: center;
   width: 18px; height: 18px;
@@ -535,8 +674,8 @@ body.mode-meditation .gramophone-card::before {
 
 /* ریسپانسیو: موبایل بسته باشد تا روی فهرست نپوشاند */
 @media (max-width: 480px) {
-    /* موبایل: باکس افقی در بالای صفحه */
-  .weather-widget { top: 60px; bottom: auto; left: auto; right: 8px; transform: none; width: auto; flex-direction: row; }
+  /* موبایل: باکس افقی در بالای صفحه */
+  .weather-widget { top: 84px; bottom: auto; left: auto; right: 8px; transform: none; width: auto; flex-direction: row; }
   .weather-widget:not(.collapsed) {
     max-width: calc(100vw - 16px);
     left: auto;
@@ -1103,7 +1242,7 @@ body.mode-meditation .disc {
 
 .mini-player {
   position: fixed;
-  top: 12px;
+  bottom: 24px;
   left: 50%;
   z-index: 55;
   display: flex;
@@ -1115,7 +1254,7 @@ body.mode-meditation .disc {
   border: 1px solid var(--border);
   border-radius: 999px;
   box-shadow: 0 10px 30px -10px rgba(0,0,0,.4);
-  transform: translateX(-50%) translateY(-140%);
+  transform: translateX(-50%) translateY(160%);
   transition: transform 380ms cubic-bezier(.4,0,.2,1);
 }
 .mini-player.show { transform: translateX(-50%) translateY(0); }
@@ -1583,6 +1722,7 @@ body.mode-meditation .disc {
 .theme-swatch[data-theme="dark"] .dot { background: linear-gradient(135deg,#1d1912,#3a2f1e); }
 .theme-swatch[data-theme="sunrise"] .dot { background: linear-gradient(135deg,#f6dd9d,#b5613b); }
 .theme-swatch[data-theme="sunset"] .dot { background: linear-gradient(135deg,#6a4c8c,#c2553f); }
+.theme-swatch[data-theme="abgineh"] .dot { background: linear-gradient(135deg,#2fd4b0,#0a2a4a); }
 
 .font-options { display: flex; gap: 5px; flex-wrap: wrap; }
 .font-options button {
@@ -1696,6 +1836,7 @@ footer.credit {
   .mode-emblem { width: 72px; height: 72px; }
   html[data-theme="sunrise"] .mode-emblem,
   html[data-theme="sunset"] .mode-emblem { width: 80px; height: 80px; }
+  html[data-theme="abgineh"] .mode-emblem { width: 90px; height: 90px; }
   .mode-emblem .icon-btn { width: 50px; height: 50px; }
   .turntable { width: 170px; height: 170px; }
   .disc { width: 145px; height: 145px; }
